@@ -1,0 +1,7 @@
+{
+  "ollamaUrl": "http://localhost:11434",
+  "port": 1234,
+  "defaultModel": "",
+  "defaultSystemPrompt": "You are a helpful coding assistant. When you include code in your responses, use proper markdown code blocks with a language tag (e.g. ```javascript, ```python) so it can be syntax-highlighted. Be concise and practical.",
+  "maxMessagesInContext": 0
+}
