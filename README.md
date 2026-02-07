@@ -1,8 +1,10 @@
-# Kurczak
+# Kurczak 🐣
 
 Minimal Ollama chat UI — no login, no heavy features. Pick a model and chat. Built for coding with markdown, syntax highlighting, and code copy.
 
-## Features
+<img width="952" height="406" alt="image" src="https://github.com/user-attachments/assets/3bddb2bf-d809-4734-8157-2245148276fd" />
+
+## 🎁 Features
 
 - **Model switcher** — Lists models from your Ollama instance
 - **Streaming** — Responses appear token-by-token
@@ -12,7 +14,7 @@ Minimal Ollama chat UI — no login, no heavy features. Pick a model and chat. B
 - **History** — Stored as JSON files under `data/history/`; list, open, delete (no database)
 - **Config** — Set Ollama URL and default system prompt in `config.json`
 
-## Setup
+## ⚙️ Setup
 
 1. Install dependencies:
    ```bash
@@ -33,12 +35,12 @@ Minimal Ollama chat UI — no login, no heavy features. Pick a model and chat. B
 
 4. Open `http://localhost:3000` (or your VPS host/port).
 
-## Requirements
+## 🔌 Requirements
 
 - Node.js 18+
 - Ollama running and reachable at the URL in `config.json`
 
-## Project layout
+## 📂 Project layout
 
 ```
 kurczak/
@@ -53,7 +55,7 @@ kurczak/
 
 History is saved automatically after each assistant reply. No DB or login — just files on disk.
 
-## Model switching and context
+## 💡 Model switching and context
 
 **Can you switch models in the middle of a conversation?** Yes. Change the model in the sidebar and send the next message; that message (and all previous ones) are sent to the newly selected model.
 
