@@ -1,0 +1,26 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## 2.0.0 - 2026-02-08
+
+- Improved streaming UX so generation continues across thread switching and rebinds to the correct message when you return.
+- Added stable per-message IDs used for DOM rebinding during streaming.
+- Added thinking/reasoning UI: collapsible “Thinking” section with a short preview while collapsed.
+- Added a Stop button to abort in-progress generation; improved abort handling to avoid server crashes.
+- Added generation duration to assistant message metadata.
+- Improved markdown rendering and code highlighting; bumped highlight.js to 11.11.1.
+- Context usage badge moved to the page top-right and adjusted behavior:
+  - Shows `0` for a brand-new thread.
+  - Includes the system prompt once the conversation has started.
+- Improved error messaging when the backend returns HTTP 500 (e.g. Ollama crash/CUDA error).
+
+# 1.0.0 - 2026-02-07
+
+- Model switcher — Lists models from your Ollama instance
+- Streaming — Responses appear token-by-token
+- Markdown & syntax highlighting — Code blocks with language tags
+- Copy button — On every code block; shows "Copied!" on green background
+- System prompt — Optional (default in config), great for "you are a coding assistant"
+- History — Stored as JSON files under data/history/; list, open, delete (no database)
+- Config — Set Ollama URL and default system prompt in config.json

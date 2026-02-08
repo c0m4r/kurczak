@@ -2,15 +2,20 @@
 
 Minimal Ollama chat UI — no login, no heavy features. Pick a model and chat. Built for coding with markdown, syntax highlighting, and code copy.
 
-<img width="952" height="406" alt="image" src="https://github.com/user-attachments/assets/3bddb2bf-d809-4734-8157-2245148276fd" />
+<img width="906" height="436" alt="image" src="https://github.com/user-attachments/assets/6c634167-8e6c-4a1a-9996-05f35747a2b2" />
 
 ## 🎁 Features
 
 - **Model switcher** — Lists models from your Ollama instance
 - **Streaming** — Responses appear token-by-token
+- **Streaming continuity** — You can switch threads mid-generation; when you return, the in-progress assistant message continues updating live
 - **Markdown & syntax highlighting** — Code blocks with language tags (e.g. ` ```javascript `)
 - **Copy button** — On every code block; shows "Copied!" on green background
 - **System prompt** — Optional (default in config), great for "you are a coding assistant"
+- **Thinking view** — If the model emits thinking/reasoning, it’s available in a collapsible “Thinking” section (with a short preview)
+- **Stop generation** — Abort an in-progress response
+- **Message metadata** — Shows timestamp, model name, and generation duration (e.g. `25.7s`)
+- **Context estimate** — Top-right badge with an approximate token count
 - **History** — Stored as JSON files under `data/history/`; list, open, delete (no database)
 - **Config** — Set Ollama URL and default system prompt in `config.json`
 
@@ -23,7 +28,7 @@ Minimal Ollama chat UI — no login, no heavy features. Pick a model and chat. B
 
 2. Edit `config.json` if needed:
    - `ollamaUrl`: your Ollama API URL (default `http://localhost:11434`)
-   - `port`: server port (default `3000`)
+   - `port`: server port (default `1234`)
    - `defaultModel`: model name to select by default (optional)
    - `defaultSystemPrompt`: pre-filled system prompt (e.g. for coding); use "System prompt" next to Send to show/edit
 
@@ -33,7 +38,7 @@ Minimal Ollama chat UI — no login, no heavy features. Pick a model and chat. B
    ```
    Dev with auto-restart: `npm run dev`
 
-4. Open `http://localhost:3000` (or your VPS host/port).
+4. Open `http://localhost:1234` (or your VPS host/port).
 
 ## 🔌 Requirements
 
@@ -68,6 +73,8 @@ Ollama (and the model) have a finite context window (e.g. 4k–128k tokens depen
 **Is sending the whole conversation the only way?** With Ollama’s stateless API, the only way to give the model “memory” is to send messages in the request. You can reduce how much we send:
 
 - **`maxMessagesInContext`** in `config.json`: set to a positive number (e.g. `20` or `50`). Only the **last N messages** of the current chat are sent to the model (system prompt is always included). The full thread is still stored in history and in the UI; only the API request is trimmed. Use this to avoid exhausting the context window on long chats.
+
+The context badge is an estimate meant for quick feedback. It starts at `~0` for a brand-new thread, and begins counting the system prompt once you’ve sent at least one message in that thread.
 
 **What happens when the model hits the context limit?** Ollama may return an error (e.g. in the response body or as an NDJSON line with `error`). The app:
 

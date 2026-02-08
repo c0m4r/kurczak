@@ -71,10 +71,22 @@ app.get('/api/model-info', async (req, res) => {
 app.post('/api/chat', async (req, res) => {
   const url = `${OLLAMA_URL}/api/chat`;
   try {
+    const controller = new AbortController();
+    const abortUpstream = () => {
+      if (controller.signal.aborted) return;
+      try { controller.abort(); } catch (_) {}
+    };
+
+    req.on('aborted', abortUpstream);
+    res.on('close', () => {
+      if (!res.writableEnded) abortUpstream();
+    });
+
     const r = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...req.body, stream: true }),
+      signal: controller.signal,
     });
     if (!r.ok) {
       let errMsg = r.statusText;
@@ -91,9 +103,23 @@ app.post('/api/chat', async (req, res) => {
     res.setHeader('Content-Type', 'application/x-ndjson');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
-    Readable.fromWeb(r.body).pipe(res);
+    const upstream = Readable.fromWeb(r.body);
+    upstream.on('error', () => {
+      try {
+        if (!res.writableEnded) res.end();
+      } catch (_) {}
+    });
+    res.on('close', () => {
+      try { upstream.destroy(); } catch (_) {}
+    });
+    upstream.pipe(res);
   } catch (e) {
-    res.status(502).json({ error: e.message || 'Cannot reach Ollama' });
+    if (e && e.name === 'AbortError') {
+      if (!res.headersSent) return res.status(499).json({ error: 'Request aborted' });
+      return;
+    }
+    const msg = e.message || 'Cannot reach Ollama';
+    if (!res.headersSent) res.status(502).json({ error: msg });
   }
 });
 

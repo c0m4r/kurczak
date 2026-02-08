@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Kurczak – Ollama Chat</title>
   <link rel="stylesheet" href="/style.css" />
-  <link id="highlightStyle" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" />
+  <link id="highlightStyle" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css" />
 </head>
 <body data-theme="dark">
   <div class="app">
@@ -20,7 +20,6 @@
           <select id="modelSelect"></select>
           <button type="button" class="btn btn-ghost btn-sm btn-set-default" id="btnSetDefault" title="Use selected model as default">Set as default</button>
         </div>
-        <div id="contextUsage" class="context-usage" aria-live="polite"></div>
       </div>
       <div class="history-section">
         <h2>History</h2>
@@ -40,22 +39,24 @@
         <div class="send-row">
           <textarea id="userInput" rows="1" placeholder="Message…" maxlength="100000"></textarea>
           <button type="button" class="btn btn-ghost btn-sm" id="btnSystemPrompt" title="Edit system prompt">System prompt</button>
-          <button type="button" class="btn btn-send" id="btnSend" title="Send">Send</button>
+          <button type="button" class="btn btn-send" id="btnSend" title="Send">Send ⏎</button>
+          <button type="button" class="btn btn-stop hidden" id="btnStop" title="Stop generating">Stop</button>
         </div>
       </div>
     </main>
   </div>
+  <div id="contextUsage" class="context-usage context-usage-top" aria-live="polite"></div>
   <div id="toast" class="toast" aria-live="polite"></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/javascript.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/typescript.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/sql.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/go.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/rust.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/bash.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/json.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/typescript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/sql.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/go.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/rust.min.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>
