@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.0.1 - 2026-02-08
+
+- Copy button bugfixes
+- Copy button that follows
+
 ## 2.0.0 - 2026-02-08
 
 - Improved streaming UX so generation continues across thread switching and rebinds to the correct message when you return.
