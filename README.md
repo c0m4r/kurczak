@@ -1,6 +1,6 @@
 # Kurczak 🐣
 
-Minimal Ollama chat UI — no login, no heavy features. Pick a model and chat. Built for coding with markdown, syntax highlighting, and code copy.
+Minimal Ollama chat UI — no login, no heavy features. Pick a model and chat. Built for coding with markdown and syntax highlighting.
 
 <img width="906" height="436" alt="image" src="https://github.com/user-attachments/assets/6c634167-8e6c-4a1a-9996-05f35747a2b2" />
 
