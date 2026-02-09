@@ -186,11 +186,43 @@
 
   function copyCode(block, btn) {
     const text = block.textContent;
-    navigator.clipboard.writeText(text).then(() => {
+    const setCopiedUI = () => {
       btn.classList.add('copied');
       showToast('Copied!');
       setTimeout(() => btn.classList.remove('copied'), 2000);
-    });
+    };
+
+    const fallbackCopy = () => {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.top = '-9999px';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, ta.value.length);
+      const ok = document.execCommand && document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (!ok) throw new Error('Copy not supported');
+    };
+
+    Promise.resolve()
+      .then(() => {
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+          return navigator.clipboard.writeText(text);
+        }
+        return fallbackCopy();
+      })
+      .then(() => setCopiedUI())
+      .catch(() => {
+        try {
+          fallbackCopy();
+          setCopiedUI();
+        } catch (_) {
+          showToast('Copy failed');
+        }
+      });
   }
 
   function showToast(msg) {
