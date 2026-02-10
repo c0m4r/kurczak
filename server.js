@@ -14,7 +14,7 @@ try {
 }
 
 const OLLAMA_URL = (config.ollamaUrl || 'http://localhost:11434').replace(/\/$/, '');
-const PORT = config.port || 3000;
+const PORT = config.port || 1234;
 const DATA_DIR = join(__dirname, 'data');
 const HISTORY_DIR = join(DATA_DIR, 'history');
 
@@ -28,6 +28,8 @@ app.get('/api/config', (_, res) => {
   res.json({
     ollamaUrl: OLLAMA_URL,
     defaultSystemPrompt: config.defaultSystemPrompt || '',
+    codingSystemPrompt: existsSync(join(__dirname, 'prompts', 'coding-complex.md')) ? readFileSync(join(__dirname, 'prompts', 'coding-complex.md'), 'utf8') : '',
+    codingSystemPromptSimple: existsSync(join(__dirname, 'prompts', 'coding-simple.md')) ? readFileSync(join(__dirname, 'prompts', 'coding-simple.md'), 'utf8') : '',
     defaultModel: config.defaultModel || '',
     maxMessagesInContext: config.maxMessagesInContext != null ? config.maxMessagesInContext : 0,
   });
@@ -74,7 +76,7 @@ app.post('/api/chat', async (req, res) => {
     const controller = new AbortController();
     const abortUpstream = () => {
       if (controller.signal.aborted) return;
-      try { controller.abort(); } catch (_) {}
+      try { controller.abort(); } catch (_) { }
     };
 
     req.on('aborted', abortUpstream);
@@ -97,7 +99,7 @@ app.post('/api/chat', async (req, res) => {
           if (parsed && typeof parsed.error === 'string') errMsg = parsed.error;
           else errMsg = errBody;
         }
-      } catch (_) {}
+      } catch (_) { }
       return res.status(r.status).json({ error: errMsg });
     }
     res.setHeader('Content-Type', 'application/x-ndjson');
@@ -107,10 +109,10 @@ app.post('/api/chat', async (req, res) => {
     upstream.on('error', () => {
       try {
         if (!res.writableEnded) res.end();
-      } catch (_) {}
+      } catch (_) { }
     });
     res.on('close', () => {
-      try { upstream.destroy(); } catch (_) {}
+      try { upstream.destroy(); } catch (_) { }
     });
     upstream.pipe(res);
   } catch (e) {
@@ -135,7 +137,7 @@ function listHistory() {
         const d = JSON.parse(raw);
         const first = d.messages?.find((m) => m.role === 'user');
         if (first?.content) title = String(first.content).slice(0, 60).replace(/\n/g, ' ');
-      } catch (_) {}
+      } catch (_) { }
       return { id, title, path: join(HISTORY_DIR, f) };
     })
     .sort((a, b) => {

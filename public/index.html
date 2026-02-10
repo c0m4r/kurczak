@@ -1,24 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Kurczak – Ollama Chat</title>
+  <title>Kurczak 🐣 – Ollama Chat</title>
   <link rel="stylesheet" href="/style.css" />
-  <link id="highlightStyle" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css" />
+  <link id="highlightStyle" rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css" />
 </head>
+
 <body data-theme="dark">
   <div class="app">
     <aside class="sidebar">
       <div class="sidebar-header">
-        <a href="#" class="logo-link" id="logoLink" title="Main dashboard">Kurczak</a>
+        <a href="#" class="logo-link" id="logoLink" title="Main dashboard">Kurczak 🐣</a>
         <button type="button" class="btn btn-ghost btn-new" id="btnNewChat" title="New chat">+ New</button>
       </div>
       <div class="model-row">
         <label for="modelSelect">Model</label>
         <div class="model-row-inputs">
           <select id="modelSelect"></select>
-          <button type="button" class="btn btn-ghost btn-sm btn-set-default" id="btnSetDefault" title="Use selected model as default">Set as default</button>
+          <div id="modelStatus" class="model-status hidden">Ollama unreachable</div>
+          <button type="button" class="btn btn-ghost btn-sm btn-set-default" id="btnSetDefault"
+            title="Use selected model as default">Set as default</button>
         </div>
       </div>
       <div class="history-section">
@@ -26,26 +31,54 @@
         <ul id="historyList"></ul>
       </div>
       <div class="sidebar-footer">
-        <button type="button" class="btn btn-ghost btn-sm btn-theme" id="btnTheme" title="Toggle light/dark theme">Theme</button>
+        <button type="button" class="btn btn-ghost btn-sm btn-theme" id="btnTheme"
+          title="Toggle light/dark theme">Theme</button>
       </div>
     </aside>
+    <div class="panel-resizer" id="sidebarResizer" aria-label="Resize sidebar" role="separator"></div>
     <main class="main">
-      <div class="messages" id="messages"></div>
+      <div class="messages-area" id="messagesArea">
+        <div class="messages" id="messages"></div>
+        <div class="panel-resizer hidden" id="explorerResizer" aria-label="Resize explorer" role="separator"></div>
+        <aside class="file-explorer hidden" id="fileExplorer">
+          <div class="file-explorer-header">
+            <h2>File Explorer</h2>
+            <div class="file-explorer-controls">
+              <button type="button" class="btn btn-ghost btn-sm" id="btnDownloadZip" title="Download project as ZIP">📦
+                Download</button>
+            </div>
+          </div>
+          <div class="file-tree" id="fileTree">
+            <div class="empty-state">No files generated yet</div>
+          </div>
+        </aside>
+      </div>
       <div class="input-area">
         <div class="system-prompt-row hidden" id="systemPromptRow">
-          <label for="systemPrompt">System prompt</label>
-          <textarea id="systemPrompt" rows="2" placeholder="Optional system instructions (e.g. you are a coding assistant…)"></textarea>
+          <div class="system-prompt-header">
+            <label for="systemPrompt">System prompt</label>
+            <div class="button-group" id="systemPromptButtons">
+              <button type="button" class="btn btn-outline btn-sm active" data-value="default">All-purpose</button>
+              <button type="button" class="btn btn-outline btn-sm" data-value="coding-simple">Coding (Simple)</button>
+              <button type="button" class="btn btn-outline btn-sm" data-value="coding-complex">Coding
+                (Complex)</button>
+              <button type="button" class="btn btn-outline btn-sm" data-value="none">None</button>
+            </div>
+          </div>
+          <textarea id="systemPrompt" rows="10"
+            placeholder="Optional system instructions (e.g. you are a coding assistant…)"></textarea>
         </div>
         <div class="send-row">
           <textarea id="userInput" rows="1" placeholder="Message…" maxlength="100000"></textarea>
-          <button type="button" class="btn btn-ghost btn-sm" id="btnSystemPrompt" title="Edit system prompt">System prompt</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="btnSystemPrompt" title="Edit system prompt">System
+            prompt</button>
           <button type="button" class="btn btn-send" id="btnSend" title="Send">Send ⏎</button>
           <button type="button" class="btn btn-stop hidden" id="btnStop" title="Stop generating">Stop</button>
         </div>
       </div>
     </main>
   </div>
-  <div id="contextUsage" class="context-usage context-usage-top" aria-live="polite"></div>
+
   <div id="toast" class="toast" aria-live="polite"></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
@@ -57,6 +90,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/sql.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/go.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/rust.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="/app.js"></script>
 </body>
+
 </html>

@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.0.0 - 2026-02-10
+
+- File Explorer System: Integrated a comprehensive file tracking system for AI-generated projects.
+  - Real-time file detection from tagged code blocks.
+  - Interactive tree view with directory support and file-type icons.
+  - File preview modal for quick content inspection.
+  - ZIP export functionality to download entire projects with structure.
+- Enhanced Status Badges: Added `✓ Done` status indicator when generation completes.
+- System Prompt Templates: optimized for structured multi-file code generation.
+- Fixed model output parsing to handle abandoned code block tags.
+- General UI cleanup and responsive design adjustments.
+
 ## 2.0.1 - 2026-02-08
 
 - Copy button bugfixes

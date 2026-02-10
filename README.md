@@ -6,18 +6,19 @@ Minimal Ollama chat UI — no login, no heavy features. Pick a model and chat. B
 
 ## 🎁 Features
 
+- **File Explorer** — Full project generation system with real-time tracking and tree view (requires capable models)
+- **Project Export** — Download complete generated projects as ZIP archives
 - **Model switcher** — Lists models from your Ollama instance
 - **Streaming** — Responses appear token-by-token
-- **Streaming continuity** — You can switch threads mid-generation; when you return, the in-progress assistant message continues updating live
-- **Markdown & syntax highlighting** — Code blocks with language tags (e.g. ` ```javascript `)
-- **Copy button** — On every code block; shows "Copied!" on green background
-- **System prompt** — Optional (default in config), great for "you are a coding assistant"
-- **Thinking view** — If the model emits thinking/reasoning, it’s available in a collapsible “Thinking” section (with a short preview)
-- **Stop generation** — Abort an in-progress response
-- **Message metadata** — Shows timestamp, model name, and generation duration (e.g. `25.7s`)
-- **Context estimate** — Top-right badge with an approximate token count
-- **History** — Stored as JSON files under `data/history/`; list, open, delete (no database)
-- **Config** — Set Ollama URL and default system prompt in `config.json`
+- **Streaming continuity** — Switch threads mid-generation without losing progress
+- **Markdown & syntax highlighting** — Code blocks with language tags
+- **Copy button** — Quick code copying from any block
+- **Thinking view** — Collapsible sections for model reasoning
+- **Stop generation** — Abort in-progress responses
+- **Message metadata** — Timestamp, model name, and generation duration
+- **Context estimate** — Visual badge with token count
+- **History** — Disk-based JSON storage for conversations
+- **Config** — Customizable Ollama URL, port, and prompts
 
 ## ⚙️ Setup
 
@@ -29,8 +30,8 @@ Minimal Ollama chat UI — no login, no heavy features. Pick a model and chat. B
 2. Edit `config.json` if needed:
    - `ollamaUrl`: your Ollama API URL (default `http://localhost:11434`)
    - `port`: server port (default `1234`)
-   - `defaultModel`: model name to select by default (optional)
-   - `defaultSystemPrompt`: pre-filled system prompt (e.g. for coding); use "System prompt" next to Send to show/edit
+   - `defaultModel`: model name to select by default
+   - `defaultSystemPrompt`: pre-filled system prompt (e.g. for coding)
 
 3. Run:
    ```bash
@@ -38,27 +39,38 @@ Minimal Ollama chat UI — no login, no heavy features. Pick a model and chat. B
    ```
    Dev with auto-restart: `npm run dev`
 
-4. Open `http://localhost:1234` (or your VPS host/port).
-
-## 🔌 Requirements
-
-- Node.js 18+
-- Ollama running and reachable at the URL in `config.json`
+4. Open `http://localhost:1234`.
 
 ## 📂 Project layout
 
 ```
 kurczak/
-  config.json     # Ollama URL, port, default system prompt
-  server.js       # Express: proxy to Ollama, history API, static files
-  data/history/   # One JSON file per conversation (created at runtime)
+  config.json             # App settings
+  server.js               # Express server & API
+  prompts/                # System prompt templates
+  data/history/           # Conversation storage
   public/
-    index.html
-    style.css
-    app.js
+    index.html            # UI structure
+    style.css             # UI styling
+    app.js                # Frontend logic & Explorer system
 ```
 
-History is saved automatically after each assistant reply. No DB or login — just files on disk.
+History is saved automatically. No DB or login required.
+
+## 📁 File Explorer System
+
+Kurczak 3.0.0 introduces a powerful File Explorer for structured code generation.
+
+> [!IMPORTANT]
+> This feature relies heavily on system prompts. Smaller models might struggle to follow guidelines correctly, so your mileage may vary. For best results, use larger or specialized coding models.
+
+### How it works
+1. **System Prompt**: Use the provided coding prompts in the `prompts/` directory to guide the AI.
+2. **Detection**: The system automatically parses file paths from code blocks (e.g., `// File: src/App.js`).
+3. **Visualization**: A real-time tree view appears in the sidebar, organizing files into folders.
+4. **Preview**: Click any file in the explorer to view its content in a modal.
+5. **Export**: Use the "📦 Download" button to save the entire project as a ZIP archive.
+
 
 ## 💡 Model switching and context
 

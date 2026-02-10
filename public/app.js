@@ -3,6 +3,7 @@
   const userInput = document.getElementById('userInput');
   const systemPrompt = document.getElementById('systemPrompt');
   const modelSelect = document.getElementById('modelSelect');
+  const modelStatus = document.getElementById('modelStatus');
   const btnSend = document.getElementById('btnSend');
   const btnNewChat = document.getElementById('btnNewChat');
   const btnSystemPrompt = document.getElementById('btnSystemPrompt');
@@ -10,9 +11,13 @@
   const btnStop = document.getElementById('btnStop');
   const systemPromptRow = document.getElementById('systemPromptRow');
   const historyList = document.getElementById('historyList');
-  const contextUsageEl = document.getElementById('contextUsage');
+
   const toast = document.getElementById('toast');
   const btnTheme = document.getElementById('btnTheme');
+  const fileExplorer = document.getElementById('fileExplorer');
+  const explorerResizer = document.getElementById('explorerResizer');
+  const fileTree = document.getElementById('fileTree');
+  const btnDownloadZip = document.getElementById('btnDownloadZip');
   const modelContextCache = {};
   const highlightStyleLink = document.getElementById('highlightStyle');
 
@@ -36,6 +41,16 @@
     setTheme(getTheme() === 'dark' ? 'light' : 'dark');
   }
 
+  function deleteMessage(msgId) {
+    if (!confirm('Are you sure you want to delete this message?')) return;
+    const idx = state.messages.findIndex(m => m.id === msgId);
+    if (idx !== -1) {
+      state.messages.splice(idx, 1);
+      saveConversation();
+      renderMessages();
+    }
+  }
+
   let state = {
     currentId: null,
     model: '',
@@ -43,6 +58,7 @@
     streaming: false,
     abortController: null,
     activeStream: null,
+    systemPromptPreset: 'default',
   };
 
   marked.setOptions({ breaks: true });
@@ -103,7 +119,7 @@
     div.querySelectorAll('pre code').forEach((block) => {
       try {
         hljs.highlightElement(block);
-      } catch (_) {}
+      } catch (_) { }
     });
     div.querySelectorAll('pre code').forEach((block) => {
       const wrap = document.createElement('div');
@@ -118,6 +134,160 @@
       wrap.insertBefore(btn, pre);
       btn.addEventListener('click', () => copyCode(block, btn));
     });
+
+    // Parse file paths from kurczak::file:: tags
+
+    function isProbablyExtensionlessSpecial(name) {
+      const specials = new Set([
+        'LICENSE', 'LICENSE.txt', 'Makefile', 'Dockerfile', '.gitignore', '.env',
+      ]);
+      return specials.has(name);
+    }
+
+    function dedupeFilePathAndSet(path, content) {
+      const p = String(path || '').trim();
+      if (!p) return;
+
+      const parts = p.split('/');
+      const filename = parts[parts.length - 1] || '';
+      const dir = parts.slice(0, -1).join('/');
+
+      const hasDot = filename.includes('.');
+      const base = hasDot ? filename.slice(0, filename.indexOf('.')) : filename;
+      const baseKey = dir ? `${dir}/${base}` : base;
+
+      if (!hasDot && !isProbablyExtensionlessSpecial(filename)) {
+        for (const k of generatedFiles.keys()) {
+          if (k === baseKey) continue;
+          const kParts = k.split('/');
+          const kFile = kParts[kParts.length - 1] || '';
+          const kDir = kParts.slice(0, -1).join('/');
+          if (kDir !== dir) continue;
+          if (kFile.startsWith(base + '.') && kFile.length > base.length + 1) {
+            return;
+          }
+        }
+      }
+
+      if (hasDot && generatedFiles.has(baseKey) && !isProbablyExtensionlessSpecial(base)) {
+        generatedFiles.delete(baseKey);
+      }
+
+      generatedFiles.set(p, content);
+    }
+
+    div.querySelectorAll('.code-block-wrap').forEach((wrap) => {
+      let prev = wrap.previousSibling;
+      let filePath = null;
+      let tagNode = null;
+
+      // Walk backwards skipping empty text nodes/whitespace
+      while (prev && (prev.nodeType === 3 && !prev.textContent.trim())) {
+        prev = prev.previousSibling;
+      }
+
+      if (prev) {
+        if (prev.nodeType === 1) { // Element
+          const text = prev.textContent || '';
+          const match = text.match(/kurczak::file::([^\s]+)/);
+          if (match) {
+            filePath = match[1];
+            tagNode = prev;
+          }
+        } else if (prev.nodeType === 3) { // Text
+          const text = prev.textContent || '';
+          const match = text.match(/kurczak::file::([^\s]+)/);
+          if (match) {
+            filePath = match[1];
+            tagNode = prev;
+          }
+        }
+      }
+
+      // Fallback: Check inside the code block
+      if (!filePath) {
+        const codeBlock = wrap.querySelector('code');
+        if (codeBlock) {
+          const text = codeBlock.textContent;
+          const patterns = [
+            /^\/\/ File:\s*(.+)$/m,
+            /^# File:\s*(.+)$/m,
+            /^<!-- File:\s*(.+?) -->$/m,
+            /^\/\* File:\s*(.+?) \*\/$/m,
+            /^-- File:\s*(.+)$/m,
+            /^' File:\s*(.+)$/m,
+            /^\*\* File:\s*(.+)$/m,
+          ];
+          for (const pattern of patterns) {
+            const match = text.match(pattern);
+            if (match) {
+              filePath = match[1];
+              break;
+            }
+          }
+        }
+      }
+
+      if (filePath) {
+        if (tagNode) {
+          if (tagNode.nodeType === 1) tagNode.style.display = 'none';
+          else if (tagNode.nodeType === 3) tagNode.textContent = '';
+        }
+
+        const codeBlock = wrap.querySelector('code');
+        let content = codeBlock ? codeBlock.textContent : '';
+
+        if (!tagNode) {
+          const patterns = [
+            /^\/\/ File:\s*(.+)$/m,
+            /^# File:\s*(.+)$/m,
+            /^<!-- File:\s*(.+?) -->$/m,
+            /^\/\* File:\s*(.+?) \*\/$/m,
+            /^-- File:\s*(.+)$/m,
+            /^' File:\s*(.+)$/m,
+            /^\*\* File:\s*(.+)$/m,
+          ];
+          patterns.forEach(pattern => {
+            content = content.replace(pattern, '');
+          });
+          content = content.trim();
+        }
+
+        dedupeFilePathAndSet(filePath, content);
+
+        if (!wrap.querySelector('.file-path-label')) {
+          const fileLabel = document.createElement('div');
+          fileLabel.className = 'file-path-label';
+          fileLabel.style.cssText = `
+                background: var(--accent);
+                color: white;
+                padding: 4px 8px;
+                font-size: 12px;
+                border-radius: 4px 4px 0 0;
+                margin-bottom: -1px;
+                font-family: var(--font);
+                cursor: pointer;
+              `;
+          fileLabel.textContent = `📁 ${filePath}`;
+          fileLabel.title = `Click to open ${filePath}`;
+          fileLabel.addEventListener('click', () => {
+            openFileModal(filePath, content);
+          });
+          wrap.insertBefore(fileLabel, wrap.firstChild);
+          if (codeBlock) codeBlock.style.borderRadius = '0 0 4px 4px';
+        }
+      }
+    });
+
+    // Update file explorer after parsing
+    if (generatedFiles.size > 0) {
+      if (fileExplorer) fileExplorer.classList.remove('hidden');
+      if (explorerResizer) explorerResizer.classList.remove('hidden');
+      directoryTree = buildTreeFromFiles(generatedFiles);
+      fileTree.innerHTML = '';
+      renderFileTree(directoryTree, fileTree);
+    }
+
     return div;
   }
 
@@ -135,8 +305,17 @@
     rawBtn.type = 'button';
     rawBtn.className = 'btn btn-ghost btn-sm btn-raw';
     rawBtn.textContent = 'Switch to raw';
+
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'btn btn-ghost btn-sm btn-del';
+    delBtn.textContent = '🗑️';
+    delBtn.title = 'Delete message';
+    delBtn.addEventListener('click', () => deleteMessage(meta.msgId));
+
     metaRow.appendChild(metaEl);
     metaRow.appendChild(rawBtn);
+    metaRow.appendChild(delBtn);
     wrap.appendChild(metaRow);
     const body = document.createElement('div');
     body.className = 'message-body';
@@ -276,6 +455,14 @@
       metaEl.className = 'message-meta';
       metaEl.textContent = formatMessageDate(meta.createdAt);
       div.appendChild(metaEl);
+
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'btn btn-ghost btn-sm btn-del user-del';
+      delBtn.textContent = '🗑️';
+      delBtn.title = 'Delete message';
+      delBtn.addEventListener('click', () => deleteMessage(meta.msgId));
+      div.appendChild(delBtn);
     }
     const inner = document.createElement('div');
     inner.className = 'content';
@@ -288,7 +475,6 @@
 
   function updateStreamingMessage(div, content) {
     const wasNearBottom = isNearBottom();
-    const parts = extractThink(content);
     const body = div.querySelector('.message-body');
     const contentEl = body ? body.querySelector('.content') : div.querySelector('.content');
     const rawEl = body ? body.querySelector('.raw-content') : null;
@@ -296,14 +482,27 @@
     const thinkingPre = thinkingDetails ? thinkingDetails.querySelector('.thinking-content') : null;
     const thinkingPreview = thinkingDetails ? thinkingDetails.querySelector('.thinking-preview') : null;
     if (!contentEl) return;
+
     div.classList.remove('status');
+
+    let processedContent = content;
+    // Check for done status
+    if (processedContent.includes('kurczak::status::done')) {
+      processedContent = processedContent.replace('kurczak::status::done', 'done');
+      div.classList.add('finished');
+    }
+
+    const parts = extractThink(processedContent);
+
     contentEl.innerHTML = '';
     contentEl.appendChild(renderMarkdown(parts.visible));
+
     if (rawEl) {
       rawEl.textContent = content;
       rawEl.classList.add('hidden');
       contentEl.classList.remove('hidden');
     }
+
     if (thinkingDetails && thinkingPre) {
       if (parts.thinking) {
         thinkingPre.textContent = parts.thinking;
@@ -316,7 +515,25 @@
         if (thinkingPreview) thinkingPreview.textContent = '';
       }
     }
+
+    if (!updateStreamingMessage._throttledContext) {
+      updateStreamingMessage._throttledContext = throttle(() => updateContextUsage(), 2000);
+    }
+    updateStreamingMessage._throttledContext();
     maybeAutoScroll(wasNearBottom);
+  }
+
+  function throttle(func, limit) {
+    let inThrottle;
+    return function () {
+      const args = arguments;
+      const context = this;
+      if (!inThrottle) {
+        func.apply(context, args);
+        inThrottle = true;
+        setTimeout(() => inThrottle = false, limit);
+      }
+    }
   }
 
   function setStreamingStatus(div, statusText) {
@@ -377,48 +594,87 @@
   }
 
   function updateContextUsage() {
-    if (!contextUsageEl) return;
     const model = modelSelect.value;
-    if (!model) {
-      contextUsageEl.textContent = '';
-      contextUsageEl.classList.remove('visible');
-      return;
-    }
-    if (!state.messages || state.messages.length === 0) {
-      fetchModelContext(model).then((contextLength) => {
-        if (!contextUsageEl) return;
-        if (contextLength != null) {
-          contextUsageEl.textContent = 'Context: ~0 / ' + contextLength.toLocaleString() + ' tokens';
-        } else {
-          contextUsageEl.textContent = 'Context: ~0 tokens';
-        }
-        contextUsageEl.classList.add('visible');
-      });
-      return;
-    }
+    if (!model) return;
 
     const sys = systemPrompt.value.trim();
     let recent = state.messages;
     if (configMaxMessagesInContext > 0) recent = state.messages.slice(-configMaxMessagesInContext);
     const estimated = estimateTokens(recent, sys);
+
     fetchModelContext(model).then((contextLength) => {
-      if (!contextUsageEl) return;
+      let text = '';
       if (contextLength != null) {
-        contextUsageEl.textContent = 'Context: ~' + estimated + ' / ' + contextLength.toLocaleString() + ' tokens';
+        text = 'Context: ~' + estimated + ' / ' + contextLength.toLocaleString() + ' tokens';
       } else {
-        contextUsageEl.textContent = 'Context: ~' + estimated + ' tokens';
+        text = 'Context: ~' + estimated + ' tokens';
       }
-      contextUsageEl.classList.add('visible');
+
+      let usageEl = messagesEl.querySelector('.context-usage-footer');
+      if (!usageEl) {
+        usageEl = document.createElement('div');
+        usageEl.className = 'context-usage-footer';
+        messagesEl.appendChild(usageEl);
+      }
+      usageEl.textContent = text;
+      // Ensure it stays at the bottom if we are already at bottom
+      if (isNearBottom()) scrollToBottom();
     });
   }
 
   let configDefaultModel = '';
   let configMaxMessagesInContext = 0;
+  let configDefaultSystemPrompt = '';
+  let configCodingSystemPrompt = '';
+  let configCodingSystemPromptSimple = '';
   function loadConfig() {
     return fetch('/api/config')
       .then((r) => r.json())
       .then((c) => {
-        if (c.defaultSystemPrompt) systemPrompt.value = c.defaultSystemPrompt;
+        configDefaultSystemPrompt = c.defaultSystemPrompt || '';
+        configCodingSystemPrompt = c.codingSystemPrompt || '';
+        configCodingSystemPromptSimple = c.codingSystemPromptSimple || '';
+
+        // Init preset selector
+        const promptButtons = document.getElementById('systemPromptButtons');
+        if (promptButtons) {
+          const btns = promptButtons.querySelectorAll('.btn');
+
+          // Expose setActive for external use
+          window.setSystemPromptPreset = setActive;
+
+          function setActive(val, updateValue = true) {
+            state.systemPromptPreset = val;
+            btns.forEach(b => {
+              if (b.dataset.value === val) {
+                b.classList.add('active');
+                if (updateValue) {
+                  if (val === 'default') systemPrompt.value = configDefaultSystemPrompt;
+                  else if (val === 'coding-simple') systemPrompt.value = configCodingSystemPromptSimple;
+                  else if (val === 'coding-complex') systemPrompt.value = configCodingSystemPrompt;
+                  else if (val === 'none') systemPrompt.value = '';
+                }
+              } else {
+                b.classList.remove('active');
+              }
+            });
+            updateContextUsage();
+          }
+
+          // Set initial to default
+          setActive('default');
+
+          btns.forEach(b => {
+            b.addEventListener('click', () => {
+              setActive(b.dataset.value);
+            });
+          });
+        }
+
+        systemPrompt.addEventListener('input', () => {
+          updateContextUsage();
+        });
+
         configDefaultModel = c.defaultModel || '';
         configMaxMessagesInContext = typeof c.maxMessagesInContext === 'number' && c.maxMessagesInContext > 0 ? c.maxMessagesInContext : 0;
       });
@@ -431,6 +687,8 @@
         return r.json();
       })
       .then((models) => {
+        modelSelect.classList.remove('hidden');
+        modelStatus.classList.add('hidden');
         modelSelect.innerHTML = '';
         const opt = document.createElement('option');
         opt.value = '';
@@ -452,9 +710,13 @@
         updateContextUsage();
       })
       .catch(() => {
-        modelSelect.innerHTML = '<option value="">Ollama unreachable</option>';
+        modelSelect.classList.add('hidden');
+        modelStatus.classList.remove('hidden');
       });
   }
+
+  // Poll for models every 5 seconds
+  setInterval(loadModels, 5000);
 
   function loadHistory() {
     return fetch('/api/history')
@@ -474,7 +736,9 @@
           del.textContent = 'Delete';
           del.addEventListener('click', (e) => {
             e.stopPropagation();
-            deleteHistory(item.id);
+            if (confirm('Are you sure you want to delete this chat history?')) {
+              deleteHistory(item.id);
+            }
           });
           li.appendChild(title);
           li.appendChild(del);
@@ -496,7 +760,16 @@
       });
   }
 
+  function resetExplorer() {
+    generatedFiles.clear();
+    directoryTree = [];
+    if (fileExplorer) fileExplorer.classList.add('hidden');
+    if (explorerResizer) explorerResizer.classList.add('hidden');
+    fileTree.innerHTML = '<div class="empty-state">No files generated yet</div>';
+  }
+
   function loadConversation(id) {
+    resetExplorer();
     fetch(`/api/history/${id}`)
       .then((r) => r.json())
       .then((data) => {
@@ -512,13 +785,32 @@
         }
         modelSelect.value = state.model;
         renderMessages();
+        if (data.systemPromptPreset && window.setSystemPromptPreset) {
+          // Don't overwrite the value if we have a custom one in history that matches the preset, 
+          // OR if we just want to set the button state.
+          // Actually, the simple logic is: set the button state, but maybe don't force-overwrite the text if it was modified?
+          // But `setActive` logic above overwrites text.
+          // Let's pass `false` to `updateValue` if we are loading a specific system prompt text from history that might differ slightly,
+          // OR just rely on the user's saved prompt text.
+
+          // If we restore the preset, we probably want to sync the button. 
+          // The systemPrompt.value is already set from data.systemPrompt above.
+          window.setSystemPromptPreset(data.systemPromptPreset, false);
+        } else {
+          // If no preset saved, maybe try to guess or just default?
+          // For now, if no preset is in data, we might leave it as is or default to coding.
+          // Let's leave it as is (which is 'coding' from init, or whatever)
+        }
+
         loadHistory();
       });
   }
 
   function newChat() {
+    resetExplorer();
     state.currentId = null;
     state.messages = [];
+    if (window.setSystemPromptPreset) window.setSystemPromptPreset('default');
     renderMessages();
     loadHistory();
   }
@@ -527,6 +819,7 @@
     const payload = {
       model: state.model || modelSelect.value,
       systemPrompt: systemPrompt.value.trim(),
+      systemPromptPreset: state.systemPromptPreset,
       messages: state.messages,
     };
     const url = state.currentId ? `/api/history/${state.currentId}` : '/api/history';
@@ -669,7 +962,7 @@
     function stopStream(reasonText) {
       if (!state.streaming) return;
       if (state.abortController) {
-        try { state.abortController.abort(); } catch (_) {}
+        try { state.abortController.abort(); } catch (_) { }
       }
       const combined = joinFull();
       messagesRef[assistantDraftIndex].content = combined || '';
@@ -771,7 +1064,7 @@
                     const p = getParts(obj);
                     if (p.thinking) fullThinking += p.thinking;
                     if (p.content) full += p.content;
-                  } catch (_) {}
+                  } catch (_) { }
                 }
                 const assistantMsg = {
                   role: 'assistant',
@@ -825,7 +1118,7 @@
                   const p = getParts(obj);
                   if (p.thinking) fullThinking += p.thinking;
                   if (p.content) full += p.content;
-                } catch (_) {}
+                } catch (_) { }
               }
               const combined = joinFull();
               if (combined) {
@@ -904,6 +1197,556 @@
 
   userInput.addEventListener('input', () => autoResizeTextarea(userInput, 10));
   if (btnTheme) btnTheme.addEventListener('click', toggleTheme);
+
+  // File Explorer functionality
+  const btnClearExplorer = document.getElementById('btnClearExplorer');
+  const sidebarResizer = document.getElementById('sidebarResizer');
+  const sidebarEl = document.querySelector('.sidebar');
+
+  let generatedFiles = new Map(); // path -> content
+  let directoryTree = null;
+
+  function clearExplorer() {
+    generatedFiles.clear();
+    directoryTree = null;
+    fileTree.innerHTML = '<div class="empty-state">No files generated yet</div>';
+  }
+
+  function getFileIcon(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    const iconMap = {
+      'js': '📜',
+      'jsx': '⚛️',
+      'ts': '📘',
+      'tsx': '⚛️',
+      'html': '🌐',
+      'css': '🎨',
+      'scss': '🎨',
+      'json': '📋',
+      'md': '📝',
+      'py': '🐍',
+      'java': '☕',
+      'cpp': '⚙️',
+      'c': '⚙️',
+      'go': '🐹',
+      'rs': '🦀',
+      'php': '🐘',
+      'rb': '💎',
+      'sql': '🗃️',
+      'yml': '📄',
+      'yaml': '📄',
+      'xml': '📄',
+      'txt': '📄',
+      'gitignore': '🚫',
+      'env': '🔧',
+      'dockerfile': '🐳'
+    };
+    return iconMap[ext] || '📄';
+  }
+
+  function buildTreeFromFiles(files) {
+    const tree = {};
+    if (files.size === 0) return tree;
+
+    // Detect common prefix
+    let commonPrefix = null;
+    let paths = Array.from(files.keys());
+
+    // Simple common prefix detection
+    if (paths.length > 0) {
+      const parts0 = paths[0].split('/');
+      if (parts0.length > 1) {
+        const root = parts0[0] + '/';
+        let allMatch = true;
+        for (const p of paths) {
+          if (!p.startsWith(root)) {
+            allMatch = false;
+            break;
+          }
+        }
+        if (allMatch) commonPrefix = root;
+      }
+    }
+
+    const wrap = !commonPrefix;
+
+    files.forEach((content, path) => {
+      // If we are wrapping, prepend 'Project/'
+      // If we found a commonPrefix, we keep it as is (it will be the top folder)
+      const fullPath = wrap ? 'Project/' + path : path;
+      const parts = fullPath.split('/').filter(p => p);
+
+      let current = tree;
+
+      parts.forEach((part, index) => {
+        if (index === parts.length - 1) {
+          // It's a file (leaf)
+          // Use 'path' (original) or 'fullPath'? 
+          // usage of .path in renderFileTree is mainly for openFileModal(path, content)
+          // If we click the file in the wrapped tree, we want to open the file.
+          // generatedFiles uses original map keys.
+          // So we should probably store the ORIGINAL path in the leaf node, 
+          // loop logic uses fullPath for structure.
+          current[part] = { type: 'file', content, path: path };
+        } else {
+          // It's a directory
+          if (!current[part]) {
+            current[part] = { type: 'folder', children: {} };
+          } else if (current[part].type === 'file') {
+            // Conflict: file became folder? handle gracefully
+            current[part] = { type: 'folder', children: {} };
+          }
+          current = current[part].children;
+        }
+      });
+    });
+
+    return tree;
+  }
+
+  function renderFileTree(tree, container, level = 0) {
+    const ul = document.createElement('ul');
+
+    Object.entries(tree).sort(([a], [b]) => {
+      // Folders first, then files, both alphabetically
+      const aIsFolder = tree[a].type === 'folder';
+      const bIsFolder = tree[b].type === 'folder';
+      if (aIsFolder !== bIsFolder) return aIsFolder ? -1 : 1;
+      return a.localeCompare(b);
+    }).forEach(([name, node]) => {
+      const li = document.createElement('li');
+
+      if (node.type === 'folder') {
+        const folderDiv = document.createElement('div');
+        folderDiv.className = 'folder-item';
+        folderDiv.innerHTML = `
+          <span class="toggle-icon">▼</span>
+          <span class="folder-icon">📁</span>
+          <span>${name}</span>
+        `;
+
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'folder-content';
+        renderFileTree(node.children, contentDiv, level + 1);
+
+        folderDiv.addEventListener('click', () => {
+          folderDiv.classList.toggle('collapsed');
+          contentDiv.classList.toggle('collapsed');
+        });
+
+        li.appendChild(folderDiv);
+        li.appendChild(contentDiv);
+      } else {
+        const fileDiv = document.createElement('div');
+        fileDiv.className = 'file-item';
+        fileDiv.innerHTML = `
+          <span class="file-icon">${getFileIcon(name)}</span>
+          <span>${name}</span>
+        `;
+
+        fileDiv.addEventListener('click', () => {
+          // Remove active class from all files
+          document.querySelectorAll('.file-item.active').forEach(item => {
+            item.classList.remove('active');
+          });
+          fileDiv.classList.add('active');
+
+          // Open file in modal or new tab
+          openFileModal(node.path, node.content);
+        });
+
+        li.appendChild(fileDiv);
+      }
+
+      ul.appendChild(li);
+    });
+
+    container.appendChild(ul);
+  }
+
+  function openFileModal(filePath, content) {
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    `;
+
+    const modalContent = document.createElement('div');
+    modalContent.style.cssText = `
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      width: 90%;
+      height: 80%;
+      max-width: 1200px;
+      display: flex;
+      flex-direction: column;
+    `;
+
+    const header = document.createElement('div');
+    header.style.cssText = `
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      gap: 16px;
+    `;
+
+    // Title
+    const title = document.createElement('h3');
+    title.style.cssText = 'margin: 0; color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
+    title.textContent = filePath;
+
+    // Actions
+    const actions = document.createElement('div');
+    actions.style.display = 'flex';
+    actions.style.gap = '8px';
+    actions.style.alignItems = 'center';
+
+    const btnCopy = document.createElement('button');
+    btnCopy.className = 'btn btn-ghost btn-sm';
+    btnCopy.textContent = 'Copy';
+    btnCopy.onclick = () => {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(content).then(() => showToast('Copied!'));
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = content;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showToast('Copied!');
+      }
+    };
+
+    const btnDownload = document.createElement('button');
+    btnDownload.className = 'btn btn-ghost btn-sm';
+    btnDownload.textContent = 'Download';
+    btnDownload.onclick = () => {
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filePath.split('/').pop();
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    };
+
+    const btnClose = document.createElement('button');
+    btnClose.style.cssText = 'background: none; border: none; color: var(--text); font-size: 20px; cursor: pointer; padding: 0 8px;';
+    btnClose.textContent = '✕';
+    btnClose.onclick = () => document.body.removeChild(modal);
+
+    actions.appendChild(btnCopy);
+    actions.appendChild(btnDownload);
+    actions.appendChild(btnClose);
+
+    header.appendChild(title);
+    header.appendChild(actions);
+
+    const contentArea = document.createElement('pre');
+    contentArea.style.cssText = `
+      flex: 1;
+      padding: 16px;
+      overflow: auto;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 13px;
+      line-height: 1.4;
+      margin: 0;
+      white-space: pre-wrap;
+    `;
+    const code = document.createElement('code');
+    code.textContent = content;
+
+    // Extension detection
+    const ext = filePath.split('.').pop();
+    if (ext) code.className = `language-${ext}`;
+
+    contentArea.appendChild(code);
+
+    modalContent.appendChild(header);
+    modalContent.appendChild(contentArea);
+    modal.appendChild(modalContent);
+
+    document.body.appendChild(modal);
+
+    modal.onclick = (e) => {
+      if (e.target === modal) document.body.removeChild(modal);
+    };
+
+    try {
+      hljs.highlightElement(code);
+    } catch (_) { }
+  }
+
+  function downloadZip() {
+    if (generatedFiles.size === 0) {
+      showToast('No files to download. Generate some code first!');
+      return;
+    }
+
+    showToast('Creating ZIP file...');
+
+    // Create a new JSZip instance
+    const zip = new JSZip();
+
+    // Add files to the zip
+    let commonPrefix = null;
+    let fileCount = 0;
+
+    // First pass: detecting common prefix
+    for (const [path] of generatedFiles) {
+      fileCount++;
+      const parts = path.split('/');
+      if (parts.length > 1) {
+        const root = parts[0] + '/';
+        if (commonPrefix === null) commonPrefix = root;
+        else if (commonPrefix !== root) {
+          commonPrefix = ''; // Mixed roots
+          break;
+        }
+      } else {
+        commonPrefix = ''; // Root file found
+        break;
+      }
+    }
+
+    // Define wrap folder if no common root
+    const wrapFolder = commonPrefix ? '' : 'project/';
+
+    for (const [path, content] of generatedFiles) {
+      zip.file(wrapFolder + path, content);
+    }
+
+
+    // Filename: CommonPrefix (minus slash) or "Project"
+    let zipFilename = 'project-files.zip';
+    if (commonPrefix) {
+      // e.g. "MyProject/" -> "MyProject.zip"
+      zipFilename = commonPrefix.slice(0, -1) + '.zip';
+    } else {
+      zipFilename = 'Project.zip';
+    }
+
+    // Generate the zip file
+    zip.generateAsync({ type: 'blob' })
+      .then(function (blob) {
+        // Create download link
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = zipFilename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showToast(`Downloaded ${generatedFiles.size} files as ZIP`);
+      })
+      .catch(function (error) {
+        console.error('Error creating ZIP:', error);
+        showToast('Error creating ZIP file');
+      });
+  }
+
+  // Parse code blocks from messages and extract file paths
+  function parseCodeBlocks() {
+    const messages = document.querySelectorAll('.message.assistant');
+
+    messages.forEach(message => {
+      const codeBlocks = message.querySelectorAll('pre code');
+      codeBlocks.forEach(block => {
+        const text = block.textContent;
+
+        // Try different comment styles for file path detection
+        const patterns = [
+          /^\/\/ File:\s*(.+)$/m,           // JavaScript/TypeScript/C++
+          /^# File:\s*(.+)$/m,              // Python/Shell/YAML
+          /^<!-- File:\s*(.+?) -->$/m,      // HTML
+          /^\/\* File:\s*(.+?) \*\/$/m,     // CSS/JS (multi-line)
+          /^-- File:\s*(.+)$/m,             // SQL
+          /^' File:\s*(.+)$/m,              // Visual Basic
+          /^\*\* File:\s*(.+)$/m,           // Markdown
+        ];
+
+        let filePath = null;
+        for (const pattern of patterns) {
+          const match = text.match(pattern);
+          if (match) {
+            filePath = match[1];
+            break;
+          }
+        }
+
+        if (filePath) {
+          // Remove the file path comment from content
+          let content = text;
+          patterns.forEach(pattern => {
+            content = content.replace(pattern, '');
+          });
+          content = content.trim();
+
+          generatedFiles.set(filePath, content);
+
+          // Update the code block to show the file path
+          const fileLabel = document.createElement('div');
+          fileLabel.className = 'file-path-label';
+          fileLabel.style.cssText = `
+            background: var(--accent);
+            color: white;
+            padding: 4px 8px;
+            font-size: 12px;
+            border-radius: 4px 4px 0 0;
+            margin-bottom: -1px;
+            font-family: var(--font);
+            cursor: pointer;
+          `;
+          fileLabel.textContent = `📁 ${filePath}`;
+          fileLabel.title = `Click to open ${filePath}`;
+
+          // Add click handler to open file
+          fileLabel.addEventListener('click', () => {
+            openFileModal(filePath, content);
+          });
+
+          block.parentNode.insertBefore(fileLabel, block);
+
+          // Add some styling to the code block
+          block.style.borderRadius = '0 0 4px 4px';
+        }
+      });
+    });
+
+    // Update file explorer
+    if (generatedFiles.size > 0) {
+      directoryTree = buildTreeFromFiles(generatedFiles);
+      fileTree.innerHTML = '';
+      renderFileTree(directoryTree, fileTree);
+    }
+  }
+
+  // Event listeners for file explorer
+  if (btnDownloadZip) {
+    btnDownloadZip.addEventListener('click', downloadZip);
+  }
+
+
+
+  // Panel resizing (sidebar + explorer)
+  function clamp(n, min, max) {
+    return Math.max(min, Math.min(max, n));
+  }
+
+  function setCssVar(name, valuePx) {
+    document.documentElement.style.setProperty(name, `${valuePx}px`);
+  }
+
+  function getStoredPx(key) {
+    const v = localStorage.getItem(key);
+    const n = v != null ? Number(v) : NaN;
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function initPanelSizes() {
+    const storedSidebar = getStoredPx('kurczak_sidebar_w');
+    const storedExplorer = getStoredPx('kurczak_explorer_w');
+    if (storedSidebar != null) setCssVar('--sidebar-w', storedSidebar);
+    if (storedExplorer != null) setCssVar('--explorer-w', storedExplorer);
+  }
+
+  function startResize(e, which) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+
+    const startX = e.clientX;
+    const startSidebarW = sidebarEl ? sidebarEl.getBoundingClientRect().width : 0;
+    const startExplorerW = fileExplorer ? fileExplorer.getBoundingClientRect().width : 0;
+
+    function onMove(ev) {
+      const dx = ev.clientX - startX;
+
+      if (which === 'sidebar') {
+        const next = clamp(startSidebarW + dx, 220, 520);
+        setCssVar('--sidebar-w', next);
+        localStorage.setItem('kurczak_sidebar_w', String(Math.round(next)));
+      }
+
+      if (which === 'explorer') {
+        const next = clamp(startExplorerW - dx, 260, 900);
+        setCssVar('--explorer-w', next);
+        localStorage.setItem('kurczak_explorer_w', String(Math.round(next)));
+      }
+    }
+
+    function onUp() {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      document.body.style.userSelect = '';
+    }
+
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }
+
+  initPanelSizes();
+  if (sidebarResizer) sidebarResizer.addEventListener('mousedown', (e) => startResize(e, 'sidebar'));
+  if (explorerResizer) explorerResizer.addEventListener('mousedown', (e) => startResize(e, 'explorer'));
+
+  // Manual trigger for parsing (for testing)
+  window.parseFiles = function () {
+    // Re-render all messages to trigger parsing
+    renderMessages();
+  };
+
+  // Test function to add sample files
+  window.addTestFiles = function () {
+    generatedFiles.set('package.json', '{\n  "name": "test-project",\n  "version": "1.0.0"\n}');
+    generatedFiles.set('src/index.js', 'console.log("Hello World");');
+    generatedFiles.set('README.md', '# Test Project\nThis is a test project.');
+
+    // Update file explorer
+    directoryTree = buildTreeFromFiles(generatedFiles);
+    fileTree.innerHTML = '';
+    renderFileTree(directoryTree, fileTree);
+
+    showToast('Added test files for download testing');
+  };
+
+  // Debug function to check code blocks
+  window.debugCodeBlocks = function () {
+    const messages = document.querySelectorAll('.message.assistant');
+    console.log('Found assistant messages:', messages.length);
+    console.log('Generated files:', generatedFiles.size);
+
+    messages.forEach((message, index) => {
+      const codeBlocks = message.querySelectorAll('pre code');
+      console.log(`Message ${index + 1} has ${codeBlocks.length} code blocks`);
+
+      codeBlocks.forEach((block, blockIndex) => {
+        const text = block.textContent;
+        console.log(`Block ${blockIndex + 1} content:`, text.substring(0, 200) + '...');
+
+        // Check for file patterns
+        const hasFilePattern = /^\/\/ File:\s*(.+)$/m.test(text);
+        console.log(`Has file pattern:`, hasFilePattern);
+      });
+    });
+  };
 
   function init() {
     setTheme(getTheme());
