@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.1.1 - 2026-02-11
+
+- **Security & Reliability**: 
+  - Fixed 5 CodeQL alerts by applying the rate limiter globally across all API endpoints.
+  - Improved streaming reliability by switching to `once` listeners for request abortion events.
+
 ## 3.1.0 - 2026-02-11
 
 - **Security Remediation Release**: Addressed critical vulnerabilities identified in AI code review.

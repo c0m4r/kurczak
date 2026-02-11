@@ -64,6 +64,8 @@ const rateLimiter = (req, res, next) => {
   next();
 };
 
+app.use(rateLimiter);
+
 app.get('/api/config', (_, res) => {
   res.json({
     ollamaUrl: OLLAMA_URL,
@@ -112,8 +114,7 @@ app.get('/api/model-info', async (req, res) => {
   }
 });
 
-// Apply rate limiter to chat endpoint
-app.post('/api/chat', rateLimiter, async (req, res) => {
+app.post('/api/chat', async (req, res) => {
   const url = `${OLLAMA_URL}/api/chat`;
   try {
     const controller = new AbortController();
@@ -122,7 +123,7 @@ app.post('/api/chat', rateLimiter, async (req, res) => {
       try { controller.abort(); } catch (_) { }
     };
 
-    req.on('aborted', abortUpstream);
+    req.once('aborted', abortUpstream);
     res.on('close', () => {
       if (!res.writableEnded) abortUpstream();
     });
