@@ -14,7 +14,7 @@ All notable changes to this project will be documented in this file.
 
 ## 3.0.0 - 2026-02-10
 
-- File Explorer System: Integrated a comprehensive file tracking system for AI-generated projects.
+- **File Explorer System**: Integrated a comprehensive file tracking system for AI-generated projects.
   - Real-time file detection from tagged code blocks.
   - Interactive tree view with directory support and file-type icons.
   - File preview modal for quick content inspection.
@@ -42,7 +42,7 @@ All notable changes to this project will be documented in this file.
   - Includes the system prompt once the conversation has started.
 - Improved error messaging when the backend returns HTTP 500 (e.g. Ollama crash/CUDA error).
 
-# 1.0.0 - 2026-02-07
+## 1.0.0 - 2026-02-07
 
 - Model switcher — Lists models from your Ollama instance
 - Streaming — Responses appear token-by-token
