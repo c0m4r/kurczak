@@ -1,7 +1,7 @@
 import express from 'express';
 import { Readable } from 'stream';
 import { readFileSync, existsSync, readdirSync, unlinkSync, writeFileSync, mkdirSync, statSync } from 'fs';
-import { join, dirname } from 'path';
+import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -13,16 +13,56 @@ try {
   config = { ollamaUrl: 'http://localhost:11434', port: 3000, defaultSystemPrompt: '' };
 }
 
-const OLLAMA_URL = (config.ollamaUrl || 'http://localhost:11434').replace(/\/$/, '');
+// Security: Validate OLLAMA_URL
+let OLLAMA_URL = (config.ollamaUrl || 'http://localhost:11434').replace(/\/$/, '');
+try {
+  const url = new URL(OLLAMA_URL);
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    console.error('Invalid OLLAMA_URL protocol. Defaulting to http://localhost:11434');
+    OLLAMA_URL = 'http://localhost:11434';
+  }
+} catch (e) {
+  console.error('Invalid OLLAMA_URL. Defaulting to http://localhost:11434');
+  OLLAMA_URL = 'http://localhost:11434';
+}
+
 const PORT = config.port || 1234;
 const DATA_DIR = join(__dirname, 'data');
 const HISTORY_DIR = join(DATA_DIR, 'history');
 
-if (!existsSync(HISTORY_DIR)) mkdirSync(HISTORY_DIR, { recursive: true });
+// Security: stricter permissions (700)
+if (!existsSync(HISTORY_DIR)) mkdirSync(HISTORY_DIR, { recursive: true, mode: 0o700 });
 
 const app = express();
-app.use(express.json({ limit: '10mb' }));
+// Security: limit body size to 1mb
+app.use(express.json({ limit: '1mb' }));
 app.use(express.static(join(__dirname, 'public')));
+
+// Security: Simple in-memory rate limiter
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX = 50; // 50 requests per minute
+
+const rateLimiter = (req, res, next) => {
+  const ip = req.ip || req.connection.remoteAddress;
+  const now = Date.now();
+
+  if (!rateLimitMap.has(ip)) {
+    rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+  } else {
+    const data = rateLimitMap.get(ip);
+    if (now > data.resetTime) {
+      data.count = 1;
+      data.resetTime = now + RATE_LIMIT_WINDOW;
+    } else {
+      data.count++;
+      if (data.count > RATE_LIMIT_MAX) {
+        return res.status(429).json({ error: 'Too many requests, please try again later.' });
+      }
+    }
+  }
+  next();
+};
 
 app.get('/api/config', (_, res) => {
   res.json({
@@ -49,7 +89,9 @@ app.get('/api/models', async (req, res) => {
 
 app.get('/api/model-info', async (req, res) => {
   const model = req.query.model;
-  if (!model) return res.status(400).json({ error: 'Missing model' });
+  // Security: input validation
+  if (!model || typeof model !== 'string' || model.length > 200) return res.status(400).json({ error: 'Invalid model' });
+
   try {
     const r = await fetch(`${OLLAMA_URL}/api/show`, {
       method: 'POST',
@@ -70,7 +112,8 @@ app.get('/api/model-info', async (req, res) => {
   }
 });
 
-app.post('/api/chat', async (req, res) => {
+// Apply rate limiter to chat endpoint
+app.post('/api/chat', rateLimiter, async (req, res) => {
   const url = `${OLLAMA_URL}/api/chat`;
   try {
     const controller = new AbortController();
@@ -125,21 +168,43 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
+function isValidId(id) {
+  return /^[a-zA-Z0-9_-]+$/.test(id);
+}
+
+function getSafeHistoryPath(id) {
+  if (!isValidId(id)) return null;
+  const targetPath = join(HISTORY_DIR, `${id}.json`);
+  const resolvedPath = resolve(targetPath);
+  const resolvedHistoryDir = resolve(HISTORY_DIR);
+  if (!resolvedPath.startsWith(resolvedHistoryDir)) return null;
+  return targetPath;
+}
+
 function listHistory() {
   if (!existsSync(HISTORY_DIR)) return [];
   return readdirSync(HISTORY_DIR)
     .filter((f) => f.endsWith('.json'))
     .map((f) => {
       const id = f.replace(/\.json$/, '');
-      const raw = readFileSync(join(HISTORY_DIR, f), 'utf8');
+      if (!isValidId(id)) return null;
+
+      const path = join(HISTORY_DIR, f);
+      // Double check path safety just in case
+      const resolvedPath = resolve(path);
+      const resolvedHistoryDir = resolve(HISTORY_DIR);
+      if (!resolvedPath.startsWith(resolvedHistoryDir)) return null;
+
+      const raw = readFileSync(path, 'utf8');
       let title = 'Chat';
       try {
         const d = JSON.parse(raw);
         const first = d.messages?.find((m) => m.role === 'user');
         if (first?.content) title = String(first.content).slice(0, 60).replace(/\n/g, ' ');
       } catch (_) { }
-      return { id, title, path: join(HISTORY_DIR, f) };
+      return { id, title, path };
     })
+    .filter(Boolean)
     .sort((a, b) => {
       const sa = existsSync(a.path) ? statSync(a.path).mtimeMs : 0;
       const sb = existsSync(b.path) ? statSync(b.path).mtimeMs : 0;
@@ -157,8 +222,8 @@ app.get('/api/history', (req, res) => {
 });
 
 app.get('/api/history/:id', (req, res) => {
-  const file = join(HISTORY_DIR, `${req.params.id}.json`);
-  if (!existsSync(file)) return res.status(404).json({ error: 'Not found' });
+  const file = getSafeHistoryPath(req.params.id);
+  if (!file || !existsSync(file)) return res.status(404).json({ error: 'Not found' });
   try {
     const data = JSON.parse(readFileSync(file, 'utf8'));
     res.json(data);
@@ -168,11 +233,20 @@ app.get('/api/history/:id', (req, res) => {
 });
 
 app.post('/api/history', (req, res) => {
-  const id = req.body.id || `chat_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-  const file = join(HISTORY_DIR, `${id}.json`);
+  let id = req.body.id;
+  if (!id) {
+    id = `chat_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  } else if (!isValidId(id)) {
+    return res.status(400).json({ error: 'Invalid ID format' });
+  }
+
+  const file = getSafeHistoryPath(id);
+  if (!file) return res.status(400).json({ error: 'Invalid ID' });
+
   const payload = { id, model: req.body.model, systemPrompt: req.body.systemPrompt, messages: req.body.messages || [] };
   try {
-    writeFileSync(file, JSON.stringify(payload, null, 2), 'utf8');
+    // Security: write with 600 permissions
+    writeFileSync(file, JSON.stringify(payload, null, 2), { encoding: 'utf8', mode: 0o600 });
     res.json({ id });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -180,11 +254,12 @@ app.post('/api/history', (req, res) => {
 });
 
 app.put('/api/history/:id', (req, res) => {
-  const file = join(HISTORY_DIR, `${req.params.id}.json`);
-  if (!existsSync(file)) return res.status(404).json({ error: 'Not found' });
+  const file = getSafeHistoryPath(req.params.id);
+  if (!file || !existsSync(file)) return res.status(404).json({ error: 'Not found' });
   try {
     const payload = { id: req.params.id, model: req.body.model, systemPrompt: req.body.systemPrompt, messages: req.body.messages || [] };
-    writeFileSync(file, JSON.stringify(payload, null, 2), 'utf8');
+    // Security: write with 600 permissions
+    writeFileSync(file, JSON.stringify(payload, null, 2), { encoding: 'utf8', mode: 0o600 });
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -192,8 +267,8 @@ app.put('/api/history/:id', (req, res) => {
 });
 
 app.delete('/api/history/:id', (req, res) => {
-  const file = join(HISTORY_DIR, `${req.params.id}.json`);
-  if (!existsSync(file)) return res.status(404).json({ error: 'Not found' });
+  const file = getSafeHistoryPath(req.params.id);
+  if (!file || !existsSync(file)) return res.status(404).json({ error: 'Not found' });
   try {
     unlinkSync(file);
     res.json({ ok: true });

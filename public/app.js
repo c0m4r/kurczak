@@ -113,9 +113,10 @@
 
   function renderMarkdown(text) {
     const raw = marked.parse(text || '');
+    const sanitized = DOMPurify.sanitize(raw);
     const div = document.createElement('div');
     div.className = 'content';
-    div.innerHTML = raw;
+    div.innerHTML = sanitized;
     div.querySelectorAll('pre code').forEach((block) => {
       try {
         hljs.highlightElement(block);

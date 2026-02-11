@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.1.0 - 2026-02-11
+
+- **Security Remediation Release**: Addressed critical vulnerabilities identified in AI code review.
+  - Fixed Path Traversal vulnerability in history API endpoints.
+  - Integrated DOMPurify for XSS protection in markdown rendering.
+  - Added Subresource Integrity (SRI) hashes to external CDN dependencies.
+  - Implemented in-memory rate limiting to mitigate DoS attacks.
+  - Hardened file permissions for chat history storage (0o700 for directories, 0o600 for files).
+  - Added input validation for Ollama URL and model parameters.
+
 ## 3.0.0 - 2026-02-10
 
 - File Explorer System: Integrated a comprehensive file tracking system for AI-generated projects.
