@@ -1,4 +1,5 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import { Readable } from 'stream';
 import { readFileSync, existsSync, readdirSync, unlinkSync, writeFileSync, mkdirSync, statSync } from 'fs';
 import { join, dirname, resolve } from 'path';
@@ -38,63 +39,27 @@ const app = express();
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(join(__dirname, 'public')));
 
-// Security: Simple in-memory rate limiter
-const rateLimitMap = new Map();
-const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
-const RATE_LIMIT_MAX = 50; // 50 requests per minute
-
-const rateLimiter = (req, res, next) => {
-  const ip = req.ip || req.connection.remoteAddress;
-  const now = Date.now();
-
-  if (!rateLimitMap.has(ip)) {
-    rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
-  } else {
-    const data = rateLimitMap.get(ip);
-    if (now > data.resetTime) {
-      data.count = 1;
-      data.resetTime = now + RATE_LIMIT_WINDOW;
-    } else {
-      data.count++;
-      if (data.count > RATE_LIMIT_MAX) {
-        return res.status(429).json({ error: 'Too many requests, please try again later.' });
-      }
-    }
-  }
-  next();
-};
-
-app.use(rateLimiter);
+// Security: Global rate limiter using express-rate-limit
+const globalLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 100, // 100 requests per minute
+  message: { error: 'Too many requests, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Security: Stricter rate limiter for file system operations
-const createRateLimiter = (maxRequests, windowMs) => {
-  const limitMap = new Map();
-  return (req, res, next) => {
-    const ip = req.ip || req.connection.remoteAddress;
-    const now = Date.now();
+const fileSystemLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 50, // 50 requests per minute
+  message: { error: 'Too many requests, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
-    if (!limitMap.has(ip)) {
-      limitMap.set(ip, { count: 1, resetTime: now + windowMs });
-    } else {
-      const data = limitMap.get(ip);
-      if (now > data.resetTime) {
-        data.count = 1;
-        data.resetTime = now + windowMs;
-      } else {
-        data.count++;
-        if (data.count > maxRequests) {
-          return res.status(429).json({ error: 'Too many requests, please try again later.' });
-        }
-      }
-    }
-    next();
-  };
-};
+app.use(globalLimiter);
 
-// File system operations get stricter rate limiting (10 req/min)
-const fileSystemRateLimiter = createRateLimiter(10, 60 * 1000);
-
-app.get('/api/config', fileSystemRateLimiter, (_, res) => {
+app.get('/api/config', fileSystemLimiter, (_, res) => {
   res.json({
     ollamaUrl: OLLAMA_URL,
     defaultSystemPrompt: config.defaultSystemPrompt || '',
@@ -250,7 +215,7 @@ app.get('/api/history', (req, res) => {
   }
 });
 
-app.get('/api/history/:id', fileSystemRateLimiter, (req, res) => {
+app.get('/api/history/:id', fileSystemLimiter, (req, res) => {
   const file = getSafeHistoryPath(req.params.id);
   if (!file || !existsSync(file)) return res.status(404).json({ error: 'Not found' });
   try {
@@ -261,7 +226,7 @@ app.get('/api/history/:id', fileSystemRateLimiter, (req, res) => {
   }
 });
 
-app.post('/api/history', fileSystemRateLimiter, (req, res) => {
+app.post('/api/history', fileSystemLimiter, (req, res) => {
   let id = req.body.id;
   if (!id) {
     id = `chat_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -282,7 +247,7 @@ app.post('/api/history', fileSystemRateLimiter, (req, res) => {
   }
 });
 
-app.put('/api/history/:id', fileSystemRateLimiter, (req, res) => {
+app.put('/api/history/:id', fileSystemLimiter, (req, res) => {
   const file = getSafeHistoryPath(req.params.id);
   if (!file || !existsSync(file)) return res.status(404).json({ error: 'Not found' });
   try {
@@ -295,7 +260,7 @@ app.put('/api/history/:id', fileSystemRateLimiter, (req, res) => {
   }
 });
 
-app.delete('/api/history/:id', fileSystemRateLimiter, (req, res) => {
+app.delete('/api/history/:id', fileSystemLimiter, (req, res) => {
   const file = getSafeHistoryPath(req.params.id);
   if (!file || !existsSync(file)) return res.status(404).json({ error: 'Not found' });
   try {

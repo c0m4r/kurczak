@@ -7,17 +7,17 @@ async function testRateLimit() {
     console.log('Testing file system endpoint rate limiting...\n');
 
     // Test /api/config endpoint (file system operation)
-    console.log('1. Testing /api/config (should allow 10 requests, then rate limit)');
+    console.log('1. Testing /api/config (should allow 50 requests, then rate limit)');
     let successCount = 0;
     let rateLimitedCount = 0;
 
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 60; i++) {
         try {
             const response = await fetch(`${BASE_URL}/api/config`);
             if (response.status === 429) {
                 rateLimitedCount++;
                 if (rateLimitedCount === 1) {
-                    console.log(`   ✓ Request ${i + 1}: Rate limited (429) - EXPECTED after 10 requests`);
+                    console.log(`   ✓ Request ${i + 1}: Rate limited (429) - EXPECTED after 50 requests`);
                 }
             } else if (response.ok) {
                 successCount++;
@@ -29,10 +29,11 @@ async function testRateLimit() {
 
     console.log(`\n   Results: ${successCount} successful, ${rateLimitedCount} rate-limited`);
 
-    if (successCount === 10 && rateLimitedCount === 5) {
-        console.log('   ✓ PASS: File system rate limiter working correctly!\n');
+    // Note: checkServer() consumes 1 request before the loop starts
+    if (successCount === 49 && rateLimitedCount === 11) {
+        console.log('   ✓ PASS: File system rate limiter working correctly (1 check + 49 loop = 50 allowed)!\n');
     } else {
-        console.log(`   ✗ FAIL: Expected 10 successful and 5 rate-limited, got ${successCount} and ${rateLimitedCount}\n`);
+        console.log(`   ✗ FAIL: Expected 49 successful and 11 rate-limited, got ${successCount} and ${rateLimitedCount}\n`);
     }
 
     // Wait for rate limit window to reset

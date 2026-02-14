@@ -296,6 +296,9 @@
     const parts = extractThink(content || '');
     const wrap = document.createElement('div');
     wrap.className = 'message assistant' + (isStreaming ? ' streaming' : '');
+    if (content && content.includes('kurczak::status::done')) {
+      wrap.classList.add('finished');
+    }
     if (meta && meta.msgId) wrap.dataset.msgId = meta.msgId;
     const metaRow = document.createElement('div');
     metaRow.className = 'message-meta-row';
@@ -489,7 +492,6 @@
     let processedContent = content;
     // Check for done status
     if (processedContent.includes('kurczak::status::done')) {
-      processedContent = processedContent.replace('kurczak::status::done', 'done');
       div.classList.add('finished');
     }
 
