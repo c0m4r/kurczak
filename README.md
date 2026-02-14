@@ -71,6 +71,33 @@ Kurczak 3.0.0 introduces a powerful File Explorer for structured code generation
 4. **Preview**: Click any file in the explorer to view its content in a modal.
 5. **Export**: Use the "📦 Download" button to save the entire project as a ZIP archive.
 
+## 🔒 Security & Intended Usage
+
+> [!WARNING]
+> **No Authentication**: This application does not have any built-in authentication or access control.
+
+It is **intended for local use** or to be hosted on a VPS/Server **strictly behind a firewall, VPN, or reverse proxy with authentication**. Exposing this application directly to the public internet will allow anyone to access your chat history and use your Ollama resources.
+
+## 🔌 API Documentation
+
+Kurczak provides a minimal REST API for interaction with Ollama and history management.
+
+### System & Models
+- `GET /api/config`: Returns the current server configuration and system prompt templates.
+- `GET /api/models`: Proxies to Ollama to list all locally available models.
+- `GET /api/model-info?model=<name>`: Fetches detailed information (like context length) for a specific model.
+
+### Chat & Generation
+- `POST /api/chat`: Proxies chat requests to Ollama with streaming support (NDJSON).
+
+### History Management
+- `GET /api/history`: Lists all saved conversation IDs and titles.
+- `GET /api/history/:id`: Retrieves the full JSON content of a specific conversation.
+- `POST /api/history`: Saves a new conversation or updates an existing one (body: `{id, model, systemPrompt, messages}`).
+- `PUT /api/history/:id`: Updates an existing conversation.
+- `DELETE /api/history/:id`: Deletes a conversation file from disk.
+
+*Note: All file system operations (`/api/config` and `/api/history/*`) are protected by a strict rate limiter (10 requests/minute).*
 
 ## 💡 Model switching and context
 

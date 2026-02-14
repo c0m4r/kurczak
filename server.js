@@ -66,7 +66,35 @@ const rateLimiter = (req, res, next) => {
 
 app.use(rateLimiter);
 
-app.get('/api/config', (_, res) => {
+// Security: Stricter rate limiter for file system operations
+const createRateLimiter = (maxRequests, windowMs) => {
+  const limitMap = new Map();
+  return (req, res, next) => {
+    const ip = req.ip || req.connection.remoteAddress;
+    const now = Date.now();
+
+    if (!limitMap.has(ip)) {
+      limitMap.set(ip, { count: 1, resetTime: now + windowMs });
+    } else {
+      const data = limitMap.get(ip);
+      if (now > data.resetTime) {
+        data.count = 1;
+        data.resetTime = now + windowMs;
+      } else {
+        data.count++;
+        if (data.count > maxRequests) {
+          return res.status(429).json({ error: 'Too many requests, please try again later.' });
+        }
+      }
+    }
+    next();
+  };
+};
+
+// File system operations get stricter rate limiting (10 req/min)
+const fileSystemRateLimiter = createRateLimiter(10, 60 * 1000);
+
+app.get('/api/config', fileSystemRateLimiter, (_, res) => {
   res.json({
     ollamaUrl: OLLAMA_URL,
     defaultSystemPrompt: config.defaultSystemPrompt || '',
@@ -222,7 +250,7 @@ app.get('/api/history', (req, res) => {
   }
 });
 
-app.get('/api/history/:id', (req, res) => {
+app.get('/api/history/:id', fileSystemRateLimiter, (req, res) => {
   const file = getSafeHistoryPath(req.params.id);
   if (!file || !existsSync(file)) return res.status(404).json({ error: 'Not found' });
   try {
@@ -233,7 +261,7 @@ app.get('/api/history/:id', (req, res) => {
   }
 });
 
-app.post('/api/history', (req, res) => {
+app.post('/api/history', fileSystemRateLimiter, (req, res) => {
   let id = req.body.id;
   if (!id) {
     id = `chat_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -254,7 +282,7 @@ app.post('/api/history', (req, res) => {
   }
 });
 
-app.put('/api/history/:id', (req, res) => {
+app.put('/api/history/:id', fileSystemRateLimiter, (req, res) => {
   const file = getSafeHistoryPath(req.params.id);
   if (!file || !existsSync(file)) return res.status(404).json({ error: 'Not found' });
   try {
@@ -267,7 +295,7 @@ app.put('/api/history/:id', (req, res) => {
   }
 });
 
-app.delete('/api/history/:id', (req, res) => {
+app.delete('/api/history/:id', fileSystemRateLimiter, (req, res) => {
   const file = getSafeHistoryPath(req.params.id);
   if (!file || !existsSync(file)) return res.status(404).json({ error: 'Not found' });
   try {

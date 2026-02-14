@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.1.2 - 2026-02-14
+
+- **Security**: Added stricter endpoint-specific rate limiting for file system operations (10 requests/min) to prevent DoS attacks. Addresses CodeQL high-severity security warnings for `/api/config`, `/api/history`, and history modification endpoints.
+
 ## 3.1.1 - 2026-02-11
 
 - **Security & Reliability**: 
