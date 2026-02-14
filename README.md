@@ -2,7 +2,7 @@
 
 Minimal Ollama chat UI — no login, no heavy features. Pick a model and chat. Built for coding with markdown and syntax highlighting.
 
-<img width="906" height="436" alt="image" src="https://github.com/user-attachments/assets/6c634167-8e6c-4a1a-9996-05f35747a2b2" />
+<img width="869" height="532" alt="image" src="https://github.com/user-attachments/assets/41cb29c3-cc85-4f66-a299-bc29a3a857e2" />
 
 ## 🎁 Features
 
@@ -60,6 +60,8 @@ History is saved automatically. No DB or login required.
 ## 📁 File Explorer System
 
 Kurczak 3.0.0 introduces a powerful File Explorer for structured code generation.
+
+<img width="1021" height="609" alt="image" src="https://github.com/user-attachments/assets/3b8c158c-22f1-45fa-8415-19ac9da2a1f6" />
 
 > [!IMPORTANT]
 > This feature relies heavily on system prompts. Smaller models might struggle to follow guidelines correctly, so your mileage may vary. For best results, use larger or specialized coding models.
