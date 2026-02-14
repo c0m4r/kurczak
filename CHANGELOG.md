@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 - hide/unhide file explorer button
 - less literal coding-complex prompt
 - helper scripts for starting the server and generating sri hash
+- higher rate limits
 
 ## 3.1.2 - 2026-02-14
 
