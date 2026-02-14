@@ -46,6 +46,7 @@
             <div class="file-explorer-controls">
               <button type="button" class="btn btn-ghost btn-sm" id="btnDownloadZip" title="Download project as ZIP">📦
                 Download</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="btnCloseExplorer" title="Hide explorer">✕</button>
             </div>
           </div>
           <div class="file-tree" id="fileTree">
@@ -72,6 +73,8 @@
           <textarea id="userInput" rows="1" placeholder="Message…" maxlength="100000"></textarea>
           <button type="button" class="btn btn-ghost btn-sm" id="btnSystemPrompt" title="Edit system prompt">System
             prompt</button>
+          <button type="button" class="btn btn-ghost btn-sm hidden" id="btnToggleExplorer"
+            title="Toggle file explorer">Explorer</button>
           <button type="button" class="btn btn-send" id="btnSend" title="Send">Send ⏎</button>
           <button type="button" class="btn btn-stop hidden" id="btnStop" title="Stop generating">Stop</button>
         </div>
@@ -116,7 +119,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
     integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"
     crossorigin="anonymous"></script>
-  <script src="/app.js" integrity="sha384-EiJB/mYNxvaIpDWqMXd87KlU7jwgGDt55wDv8qWBhibgmwGLJCZMporGFoOIjdMJ"
+  <script src="/app.js" integrity="sha384-kZZnnQGJroZDQotG3puTNqXNc5Ojj1aMtdoNY+Lvfp8WzV1VN8/ddkH+Y5uwt8YQ"
     crossorigin="anonymous"></script>
 </body>
 

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.1.3 - 2026-02-14
+
+- hide/unhide file explorer button
+- less literal coding-complex prompt
+- helper scripts for starting the server and generating sri hash
+
 ## 3.1.2 - 2026-02-14
 
 - **Security**: Implemented rate limiting using the `express-rate-limit` package to prevent DoS attacks:

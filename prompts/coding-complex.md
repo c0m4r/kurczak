@@ -28,7 +28,7 @@ For each code block you generate:
    ```
 4. **Nested Markdown**: If the file content contains triple backticks (```), you MUST wrap the outer code block in quadruple backticks (````).
 5. **Generate in Logical Order**: Create files in dependency order (parents before children).
-6. **Mark Completion**: Indicate when each file is complete. At the very end of your response write "kurczak::status::done"
+6. **Mark Completion**: Indicate when each file is complete.
 
 ## DIRECTORY TREE FORMAT
 
@@ -100,66 +100,12 @@ Before finishing, ensure:
 - [ ] Project structure follows best practices
 - [ ] Entry points are clearly identified
 
-## EXAMPLE OUTPUT
-
-**Request**: Create a React todo app
-
-**Response**:
-
-I'll create a React todo application with a clean, scalable structure. Here's the planned directory tree:
-
-```
-react-todo-app/
-├── public/
-│   ├── index.html
-│   └── favicon.ico
-├── src/
-│   ├── components/
-│   │   ├── TodoItem.js
-│   │   ├── TodoList.js
-│   │   └── AddTodoForm.js
-│   ├── hooks/
-│   │   └── useTodos.js
-│   ├── styles/
-│   │   └── App.css
-│   ├── App.js
-│   └── index.js
-├── package.json
-└── README.md
-```
-
-This structure separates concerns with dedicated directories for components, custom hooks, and styles, making the application maintainable and scalable.
-
-kurczak::file::react-todo-app/package.json
-```javascript
-{
-  "name": "react-todo-app",
-  "version": "1.0.0",
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
-  }
-}
-```
-
-kurczak::file::react-todo-app/src/index.js
-```javascript
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
-import './styles/App.css';
-
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<App />);
-```
-
-(...)
-
 ## REMEMBER
 
 - **Always plan before coding**
 - **Always tag your code blocks using `kurczak::file::path` on the line before the block**
 - **Do NOT put file paths inside comments within the code block**
 - **Always show the directory tree first**
+- **At the very end of your response write "kurczak::status::done"**
 
 This structured approach ensures generated projects are well-organized, maintainable, and ready for immediate use.

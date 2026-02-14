@@ -18,6 +18,8 @@
   const explorerResizer = document.getElementById('explorerResizer');
   const fileTree = document.getElementById('fileTree');
   const btnDownloadZip = document.getElementById('btnDownloadZip');
+  const btnCloseExplorer = document.getElementById('btnCloseExplorer');
+  const btnToggleExplorer = document.getElementById('btnToggleExplorer');
   const modelContextCache = {};
   const highlightStyleLink = document.getElementById('highlightStyle');
 
@@ -282,8 +284,17 @@
 
     // Update file explorer after parsing
     if (generatedFiles.size > 0) {
-      if (fileExplorer) fileExplorer.classList.remove('hidden');
-      if (explorerResizer) explorerResizer.classList.remove('hidden');
+      if (fileExplorer) {
+        const isHidden = localStorage.getItem('kurczak_explorerHidden') === 'true';
+        if (isHidden) {
+          fileExplorer.classList.add('hidden');
+          if (explorerResizer) explorerResizer.classList.add('hidden');
+        } else {
+          fileExplorer.classList.remove('hidden');
+          if (explorerResizer) explorerResizer.classList.remove('hidden');
+        }
+      }
+      if (btnToggleExplorer) btnToggleExplorer.classList.remove('hidden');
       directoryTree = buildTreeFromFiles(generatedFiles);
       fileTree.innerHTML = '';
       renderFileTree(directoryTree, fileTree);
@@ -307,8 +318,29 @@
     metaEl.textContent = formatAssistantMeta(meta);
     const rawBtn = document.createElement('button');
     rawBtn.type = 'button';
-    rawBtn.className = 'btn btn-ghost btn-sm btn-raw';
+    rawBtn.className = 'btn btn-ghost btn-sm';
     rawBtn.textContent = 'Switch to raw';
+
+    const copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.className = 'btn btn-ghost btn-sm btn-copy-msg';
+    copyBtn.textContent = 'Copy';
+    copyBtn.addEventListener('click', () => {
+      const body = wrap.querySelector('.message-body');
+      const rawEl = body ? body.querySelector('.raw-content') : null;
+      const textToCopy = rawEl ? rawEl.textContent : (content || '');
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(textToCopy).then(() => showToast('Copied!'));
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = textToCopy;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showToast('Copied!');
+      }
+    });
 
     const delBtn = document.createElement('button');
     delBtn.type = 'button';
@@ -319,6 +351,7 @@
 
     metaRow.appendChild(metaEl);
     metaRow.appendChild(rawBtn);
+    metaRow.appendChild(copyBtn);
     metaRow.appendChild(delBtn);
     wrap.appendChild(metaRow);
     const body = document.createElement('div');
@@ -455,10 +488,32 @@
     div.className = `message ${role}`;
     if (meta && meta.msgId) div.dataset.msgId = meta.msgId;
     if (meta && meta.createdAt) {
+      const metaRow = document.createElement('div');
+      metaRow.className = 'message-meta-row';
+
       const metaEl = document.createElement('span');
       metaEl.className = 'message-meta';
       metaEl.textContent = formatMessageDate(meta.createdAt);
-      div.appendChild(metaEl);
+      metaRow.appendChild(metaEl);
+
+      const copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'btn btn-ghost btn-sm btn-copy-msg user-copy';
+      copyBtn.textContent = 'Copy';
+      copyBtn.addEventListener('click', () => {
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(content).then(() => showToast('Copied!'));
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = content;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          showToast('Copied!');
+        }
+      });
+      metaRow.appendChild(copyBtn);
 
       const delBtn = document.createElement('button');
       delBtn.type = 'button';
@@ -466,7 +521,9 @@
       delBtn.textContent = '🗑️';
       delBtn.title = 'Delete message';
       delBtn.addEventListener('click', () => deleteMessage(meta.msgId));
-      div.appendChild(delBtn);
+      metaRow.appendChild(delBtn);
+
+      div.appendChild(metaRow);
     }
     const inner = document.createElement('div');
     inner.className = 'content';
@@ -768,6 +825,7 @@
     directoryTree = [];
     if (fileExplorer) fileExplorer.classList.add('hidden');
     if (explorerResizer) explorerResizer.classList.add('hidden');
+    if (btnToggleExplorer) btnToggleExplorer.classList.add('hidden');
     fileTree.innerHTML = '<div class="empty-state">No files generated yet</div>';
   }
 
@@ -1200,6 +1258,16 @@
 
   userInput.addEventListener('input', () => autoResizeTextarea(userInput, 10));
   if (btnTheme) btnTheme.addEventListener('click', toggleTheme);
+
+  function toggleExplorer() {
+    if (!fileExplorer) return;
+    const isHidden = fileExplorer.classList.toggle('hidden');
+    if (explorerResizer) explorerResizer.classList.toggle('hidden', isHidden);
+    localStorage.setItem('kurczak_explorerHidden', isHidden);
+  }
+
+  if (btnCloseExplorer) btnCloseExplorer.addEventListener('click', toggleExplorer);
+  if (btnToggleExplorer) btnToggleExplorer.addEventListener('click', toggleExplorer);
 
   // File Explorer functionality
   const btnClearExplorer = document.getElementById('btnClearExplorer');

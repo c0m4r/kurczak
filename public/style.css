@@ -314,10 +314,9 @@ body {
   min-width: 0;
 }
 
-.message-meta-row .btn-raw {
-  padding: 2px 6px;
-  font-size: 11px;
-  color: var(--text-muted);
+.message-meta-row .btn-raw,
+.message-meta-row .btn-del,
+.message-meta-row .btn-copy-msg {
   flex-shrink: 0;
 }
 
@@ -935,7 +934,20 @@ body {
   right: 0;
   top: 0;
   z-index: 10;
-  transition: margin-right var(--transition-speed) ease-in-out, transform var(--transition-speed) ease-in-out;
+  transition: margin-right var(--transition-speed) ease-in-out, transform var(--transition-speed) ease-in-out, opacity var(--transition-speed) ease-in-out;
+}
+
+.file-explorer.hidden {
+  display: flex !important;
+  margin-right: calc(var(--explorer-w) * -1);
+  transform: translateX(100%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+#btnCloseExplorer {
+  font-weight: bold;
+  font-size: 14px;
 }
 
 /* Resizers */
