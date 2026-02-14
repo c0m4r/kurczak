@@ -42,7 +42,7 @@ app.use(express.static(join(__dirname, 'public')));
 // Security: Global rate limiter using express-rate-limit
 const globalLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 100, // 100 requests per minute
+  max: 500, // 500 requests per minute
   message: { error: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -51,7 +51,7 @@ const globalLimiter = rateLimit({
 // Security: Stricter rate limiter for file system operations
 const fileSystemLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 50, // 50 requests per minute
+  max: 250, // 250 requests per minute
   message: { error: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
