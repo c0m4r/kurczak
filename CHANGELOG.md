@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.1.4 - 2026-02-15
+
+- simplified coding prompt
+- context lenght calculation improvements
+
 ## 3.1.3 - 2026-02-14
 
 - hide/unhide file explorer button
