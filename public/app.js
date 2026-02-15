@@ -644,13 +644,19 @@
   function fetchModelContext(model) {
     if (modelContextCache[model] !== undefined) return Promise.resolve(modelContextCache[model]);
     return fetch('/api/model-info?model=' + encodeURIComponent(model))
-      .then((r) => r.ok ? r.json() : { contextLength: null })
+      .then((r) => r.ok ? r.json() : { contextLength: null, contextLengthType: 'maximum' })
       .then((d) => {
-        const ctx = d && d.contextLength != null ? Number(d.contextLength) : null;
-        modelContextCache[model] = ctx;
-        return ctx;
+        const result = {
+          contextLength: d && d.contextLength != null ? Number(d.contextLength) : null,
+          contextLengthType: d.contextLengthType || 'maximum'
+        };
+        modelContextCache[model] = result;
+        return result;
       })
-      .catch(() => { modelContextCache[model] = null; return null; });
+      .catch(() => { 
+        modelContextCache[model] = { contextLength: null, contextLengthType: 'maximum' }; 
+        return { contextLength: null, contextLengthType: 'maximum' }; 
+      });
   }
 
   function updateContextUsage() {
@@ -662,10 +668,17 @@
     if (configMaxMessagesInContext > 0) recent = state.messages.slice(-configMaxMessagesInContext);
     const estimated = estimateTokens(recent, sys);
 
-    fetchModelContext(model).then((contextLength) => {
+    fetchModelContext(model).then((result) => {
       let text = '';
-      if (contextLength != null) {
-        text = 'Context: ~' + estimated + ' / ' + contextLength.toLocaleString() + ' tokens';
+      let isExceeded = false;
+      
+      if (result.contextLength != null) {
+        const contextTypeLabel = result.contextLengthType === 'actual' ? 'actual' : 'max';
+        text = 'Context: ~' + estimated + ' / ' + result.contextLength.toLocaleString() + ' (' + contextTypeLabel + ') tokens';
+        isExceeded = estimated > result.contextLength;
+        if (isExceeded) {
+          text += ' ⚠️ EXCEEDED';
+        }
       } else {
         text = 'Context: ~' + estimated + ' tokens';
       }
@@ -677,6 +690,18 @@
         messagesEl.appendChild(usageEl);
       }
       usageEl.textContent = text;
+      
+      // Add warning class when exceeded
+      if (isExceeded) {
+        usageEl.classList.add('context-exceeded');
+      } else {
+        usageEl.classList.remove('context-exceeded');
+      }
+      
+      // Add class to indicate actual vs maximum context
+      usageEl.classList.toggle('context-actual', result.contextLengthType === 'actual');
+      usageEl.classList.toggle('context-maximum', result.contextLengthType === 'maximum');
+      
       // Ensure it stays at the bottom if we are already at bottom
       if (isNearBottom()) scrollToBottom();
     });
@@ -1059,6 +1084,12 @@
       const controller = new AbortController();
       state.abortController = controller;
       startedAtMs = Date.now();
+      
+      // Clear context cache to force fresh check when model loads
+      if (modelContextCache[model]) {
+        delete modelContextCache[model];
+      }
+      
       fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1082,6 +1113,12 @@
         })
         .then((reader) => {
           setStreamingStatus(streamDiv, 'Waiting for response…');
+          
+          // Recheck context length after a short delay to allow model to load
+          setTimeout(() => {
+            updateContextUsage();
+          }, 3000);
+          
           const decoder = new TextDecoder();
           let buffer = '';
           let receivedChunks = false;
@@ -1183,6 +1220,12 @@
               }
               const combined = joinFull();
               if (combined) {
+                // Update context usage on first content chunk (model is definitely loaded now)
+                if (!receivedChunks) {
+                  receivedChunks = true;
+                  updateContextUsage();
+                }
+                
                 messagesRef[assistantDraftIndex].content = combined;
                 messagesRef[assistantDraftIndex].partial = true;
                 scheduleStreamingSave();

@@ -332,6 +332,36 @@ body {
   display: block;
 }
 
+.context-usage-footer {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 8px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  text-align: center;
+  transition: color 0.2s, background 0.2s;
+}
+
+.context-usage-footer.context-exceeded {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, var(--bg));
+  border-top-color: var(--danger);
+  font-weight: 600;
+}
+
+.context-usage-footer.context-actual {
+  border-top-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 5%, var(--bg));
+}
+
+.context-usage-footer.context-actual:not(.context-exceeded) {
+  color: var(--accent);
+}
+
+.context-usage-footer.context-maximum {
+  opacity: 0.8;
+}
+
 .context-usage-top {
   position: fixed;
   top: 12px;

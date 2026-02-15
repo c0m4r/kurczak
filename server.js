@@ -88,20 +88,57 @@ app.get('/api/model-info', async (req, res) => {
   if (!model || typeof model !== 'string' || model.length > 200) return res.status(400).json({ error: 'Invalid model' });
 
   try {
-    const r = await fetch(`${OLLAMA_URL}/api/show`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model }),
-    });
-    if (!r.ok) return res.status(r.status).json({ error: (await r.json().catch(() => ({}))).error || r.statusText });
-    const data = await r.json();
-    let contextLength = data.num_ctx;
-    if (contextLength == null && data.parameters) {
-      const p = data.parameters;
-      if (typeof p === 'object' && typeof p.num_ctx === 'number') contextLength = p.num_ctx;
-      else if (typeof p === 'string') { const m = p.match(/num_ctx\s+(\d+)/); if (m) contextLength = parseInt(m[1], 10); }
+    let contextLength = null;
+    let contextLengthType = 'maximum'; // Default to maximum
+    
+    // First, try to get actual context length from running models
+    try {
+      const psResponse = await fetch(`${OLLAMA_URL}/api/ps`);
+      if (psResponse.ok) {
+        const psData = await psResponse.json();
+        const runningModel = psData.models?.find(m => m.name === model || m.model === model);
+        if (runningModel?.context_length) {
+          contextLength = runningModel.context_length;
+          contextLengthType = 'actual';
+        }
+      }
+    } catch (psError) {
+      // Ignore /api/ps errors and fall back to model info
     }
-    res.json({ contextLength: contextLength != null ? Number(contextLength) : null });
+    
+    // If not found in running models, get from model info (maximum context length)
+    if (contextLength == null) {
+      const r = await fetch(`${OLLAMA_URL}/api/show`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model }),
+      });
+      if (!r.ok) return res.status(r.status).json({ error: (await r.json().catch(() => ({}))).error || r.statusText });
+      const data = await r.json();
+      contextLength = data.num_ctx;
+      
+      // Check in model_info for architecture-specific context length
+      if (contextLength == null && data.model_info) {
+        // Look for any key ending with .context_length
+        for (const [key, value] of Object.entries(data.model_info)) {
+          if (key.endsWith('.context_length') && typeof value === 'number') {
+            contextLength = value;
+            break;
+          }
+        }
+      }
+      
+      if (contextLength == null && data.parameters) {
+        const p = data.parameters;
+        if (typeof p === 'object' && typeof p.num_ctx === 'number') contextLength = p.num_ctx;
+        else if (typeof p === 'string') { const m = p.match(/num_ctx\s+(\d+)/); if (m) contextLength = parseInt(m[1], 10); }
+      }
+    }
+    
+    res.json({ 
+      contextLength: contextLength != null ? Number(contextLength) : null,
+      contextLengthType 
+    });
   } catch (e) {
     res.status(502).json({ error: e.message || 'Cannot reach Ollama' });
   }
