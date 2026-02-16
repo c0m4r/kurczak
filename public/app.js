@@ -642,7 +642,11 @@
   }
 
   function fetchModelContext(model) {
-    if (modelContextCache[model] !== undefined) return Promise.resolve(modelContextCache[model]);
+    if (modelContextCache[model] !== undefined) {
+      // Using cached context
+      return Promise.resolve(modelContextCache[model]);
+    }
+    // Fetching fresh context info
     return fetch('/api/model-info?model=' + encodeURIComponent(model))
       .then((r) => r.ok ? r.json() : { contextLength: null, contextLengthType: 'maximum' })
       .then((d) => {
@@ -650,10 +654,12 @@
           contextLength: d && d.contextLength != null ? Number(d.contextLength) : null,
           contextLengthType: d.contextLengthType || 'maximum'
         };
+        // Caching context
         modelContextCache[model] = result;
         return result;
       })
       .catch(() => { 
+        // Failed to fetch context
         modelContextCache[model] = { contextLength: null, contextLengthType: 'maximum' }; 
         return { contextLength: null, contextLengthType: 'maximum' }; 
       });
@@ -1086,9 +1092,8 @@
       startedAtMs = Date.now();
       
       // Clear context cache to force fresh check when model loads
-      if (modelContextCache[model]) {
-        delete modelContextCache[model];
-      }
+      console.log(`🚀 Starting stream with model: ${model}`);
+      Object.keys(modelContextCache).forEach(key => delete modelContextCache[key]);
       
       fetch('/api/chat', {
         method: 'POST',
@@ -1113,11 +1118,6 @@
         })
         .then((reader) => {
           setStreamingStatus(streamDiv, 'Waiting for response…');
-          
-          // Recheck context length after a short delay to allow model to load
-          setTimeout(() => {
-            updateContextUsage();
-          }, 3000);
           
           const decoder = new TextDecoder();
           let buffer = '';
@@ -1282,7 +1282,14 @@
   btnSystemPrompt.addEventListener('click', () => {
     systemPromptRow.classList.toggle('hidden');
   });
-  modelSelect.addEventListener('change', () => { state.model = modelSelect.value; updateContextUsage(); });
+  modelSelect.addEventListener('change', () => { 
+    const newModel = modelSelect.value;
+    console.log(`🔄 Model changed to: ${newModel}`);
+    // Clear all context cache when model changes to force fresh check
+    Object.keys(modelContextCache).forEach(key => delete modelContextCache[key]);
+    state.model = newModel;
+    updateContextUsage(); 
+  });
   btnSetDefault.addEventListener('click', () => {
     const model = modelSelect.value;
     if (model) {
