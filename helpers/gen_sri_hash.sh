@@ -12,3 +12,4 @@ fi
 HASH=$(cat public/app.js | openssl dgst -sha384 -binary | openssl base64 -A)
 echo "app.js: sha384-${HASH}"
 echo "<script src=\"/app.js\" integrity=\"sha384-${HASH}\" crossorigin=\"anonymous\"></script>"
+sed -i "s|\/app.js\"\ integrity=\".*\"|\/app.js\"\ integrity=\"sha384-${HASH}\"|g;" public/index.html
