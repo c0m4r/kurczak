@@ -39,14 +39,23 @@ Minimal Ollama chat UI — no login, no heavy features. Pick a model and chat. B
    ```
    Dev with auto-restart: `npm run dev`
 
-4. Open `http://localhost:1234`.
+4. Run Ollama
+
+```bash
+export OLLAMA_CONTEXT_LENGTH=12288 # 12k context length (default: 4k)
+ollama serve
+```
+
+5. Open `http://localhost:1234`.
 
 ## 🐳 Docker
 
 1. Run Ollama
 
 ```bash
-export OLLAMA_HOST=0.0.0.0
+ip a s docker0 | grep global | awk '{print $2}' | cut -f1 -d\/
+export OLLAMA_HOST=0.0.0.0 # replace with your docker0 ip
+export OLLAMA_CONTEXT_LENGTH=12288 # 12k context length (default: 4k)
 ollama serve
 ```
 
