@@ -98,3 +98,172 @@ The application is a well-implemented, minimalist wrapper for Ollama. It follows
 
 ### Summary
 **Kurczak** is a high-quality, "hacker-friendly" tool. The code is transparent, the security boundaries for local files are well-defined, and it avoids the bloat of modern frontend frameworks. As long as it is not exposed directly to the internet, it is a safe and performant interface for Ollama.
+
+---
+
+### 6. Structured Output for Files (Deep Dive)
+
+You asked for an elaboration on **Structured Output**.
+
+#### The Problem with the Current Approach
+Currently, Kurczak uses **Pattern Matching (Regex)**. It asks the LLM to write code like this:
+```javascript
+// File: src/app.js
+console.log("hello");
+```
+And the frontend looks for the string `// File: ...`.
+
+**Weaknesses:**
+1.  **Hallucinations:** The model might write `// Filename: app.js` or `/* file: app.js */`, breaking your regex.
+2.  **Ambiguity:** If the user pastes code containing that comment string, the app might mistakenly think it's a new file generation.
+3.  **Parsing Complexity:** Handling multi-line strings inside a regex match across streaming chunks is difficult and error-prone.
+
+#### The Solution: Ollama Tools (Function Calling)
+The modern solution is **Tool Calling** (available in Ollama with models like Llama 3.1, Mistral, Qwen 2.5).
+
+Instead of asking the model to "write text that looks like a file", we give the model a specific "Tool" (function) definition called `create_files`. The model will then decide to **call this function** with a strict JSON object containing the filenames and content.
+
+### Implementation Guide
+
+Here is how you would refactor Kurczak to use Tool Calling for 100% reliable file generation.
+
+#### 1. Define the Schema (Frontend)
+In `app.js`, define the tool structure. This tells the LLM exactly what data format we expect.
+
+```javascript
+// The definition of the tool we want the model to use
+const fileToolDefinition = {
+  type: 'function',
+  function: {
+    name: 'create_files',
+    description: 'Generate source code files for the project',
+    parameters: {
+      type: 'object',
+      properties: {
+        files: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              path: { 
+                type: 'string', 
+                description: 'Relative file path (e.g., src/index.js)' 
+              },
+              content: { 
+                type: 'string', 
+                description: 'The complete source code content' 
+              }
+            },
+            required: ['path', 'content']
+          }
+        }
+      },
+      required: ['files']
+    }
+  }
+};
+```
+
+#### 2. Update Backend (`server.js`) to Pass Tools
+You need to pass this tool definition to Ollama in the `/api/chat` endpoint.
+
+*Modify `app.post('/api/chat', ...)`:*
+
+```javascript
+app.post('/api/chat', async (req, res) => {
+  // ... existing setup ...
+
+  // Extract tools from request body if sent by frontend
+  const { model, messages, tools, stream } = req.body;
+
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 
+      model, 
+      messages, 
+      stream: true, // Keep streaming!
+      tools: tools || undefined // Pass tools to Ollama
+    }),
+    signal: controller.signal,
+  });
+  
+  // ... rest of the streaming logic ...
+});
+```
+
+#### 3. Handle the Tool Call in Frontend (`app.js`)
+This is the most complex part because Ollama streams tool calls in chunks. You need to accumulate the JSON pieces.
+
+*Revised `sendMessage` logic in `app.js`:*
+
+```javascript
+function sendMessage() {
+  // ... setup logic ...
+  
+  // Add the tool definition to the request
+  fetch('/api/chat', {
+     method: 'POST',
+     body: JSON.stringify({
+       model,
+       messages: messagesForApi,
+       stream: true,
+       tools: [fileToolDefinition] // <--- SEND THE TOOL
+     }),
+     // ...
+  });
+}
+
+// Inside the streaming reader loop:
+let toolCallBuffer = '';
+let currentToolName = '';
+
+// ... inside the read() loop ...
+if (obj.message.tool_calls) {
+  // Ollama might send the whole tool call at once or stream arguments
+  obj.message.tool_calls.forEach(tool => {
+     if (tool.function.name === 'create_files') {
+        // If arguments are streaming strings, append them
+        // Note: Implementation details vary by model/Ollama version
+        // Usually, for streaming, you might get partial JSON strings
+        const args = tool.function.arguments;
+        
+        // Assuming we have accumulated the full arguments object:
+        if (args && args.files) {
+           args.files.forEach(file => {
+              // 1. Add to generatedFiles Map
+              generatedFiles.set(file.path, file.content);
+              
+              // 2. Update UI Tree
+              updateFileExplorer();
+              
+              // 3. (Optional) Render a UI card saying "Generated file: src/app.js"
+              appendSystemMessage(`Generated: ${file.path}`);
+           });
+        }
+     }
+  });
+}
+```
+
+#### 4. The UI Challenge (Hybrid Approach)
+
+**The tricky part:** When a model calls a tool, it usually *stops* generating normal chat text. It switches to "JSON mode".
+If you want the model to explain the code *and* generate the file, you need to prompt it carefully.
+
+**System Prompt Adjustment:**
+```text
+You are a coding assistant. 
+1. First, explain your plan in the chat.
+2. Then, call the `create_files` tool to generate the actual code.
+```
+
+**Why this is better than the current Regex:**
+1.  **Reliability:** The model is constrained by the JSON schema. It literally *cannot* output a malformed file path if the model adheres to the tool definition properly.
+2.  **Clean Separation:** Your chat UI shows the explanation. The file explorer shows the files. You don't have to hide huge code blocks in the chat UI if you don't want to.
+3.  **Edit Capability:** Since you receive a clean JSON object, it is much easier to implement features like "Apply Diff" or "Update File" later.
+
+### Summary of Changes for Structured Output
+1.  **Backend:** Pass `tools` array to Ollama.
+2.  **Frontend:** Define the JSON schema for `create_files`.
+3.  **Frontend Logic:** Instead of regex-parsing the `content` string, listen for `tool_calls` in the response object, parse the JSON, and populate the File Explorer directly.
