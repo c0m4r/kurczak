@@ -90,7 +90,7 @@ app.get('/api/model-info', async (req, res) => {
   try {
     let contextLength = null;
     let contextLengthType = 'maximum'; // Default to maximum
-    
+
     // First, try to get actual context length from running models
     try {
       const psResponse = await fetch(`${OLLAMA_URL}/api/ps`);
@@ -105,7 +105,7 @@ app.get('/api/model-info', async (req, res) => {
     } catch (psError) {
       // Ignore /api/ps errors and fall back to model info
     }
-    
+
     // If not found in running models, get from model info (maximum context length)
     if (contextLength == null) {
       const r = await fetch(`${OLLAMA_URL}/api/show`, {
@@ -116,7 +116,7 @@ app.get('/api/model-info', async (req, res) => {
       if (!r.ok) return res.status(r.status).json({ error: (await r.json().catch(() => ({}))).error || r.statusText });
       const data = await r.json();
       contextLength = data.num_ctx;
-      
+
       // Check in model_info for architecture-specific context length
       if (contextLength == null && data.model_info) {
         // Look for any key ending with .context_length
@@ -127,17 +127,17 @@ app.get('/api/model-info', async (req, res) => {
           }
         }
       }
-      
+
       if (contextLength == null && data.parameters) {
         const p = data.parameters;
         if (typeof p === 'object' && typeof p.num_ctx === 'number') contextLength = p.num_ctx;
         else if (typeof p === 'string') { const m = p.match(/num_ctx\s+(\d+)/); if (m) contextLength = parseInt(m[1], 10); }
       }
     }
-    
-    res.json({ 
+
+    res.json({
       contextLength: contextLength != null ? Number(contextLength) : null,
-      contextLengthType 
+      contextLengthType
     });
   } catch (e) {
     res.status(502).json({ error: e.message || 'Cannot reach Ollama' });
@@ -308,6 +308,23 @@ app.delete('/api/history/:id', fileSystemLimiter, (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Kurczak running at http://localhost:${PORT} (Ollama: ${OLLAMA_URL})`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM signal received: closing HTTP server');
+  server.close(() => {
+    console.log('HTTP server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT signal received: closing HTTP server');
+  server.close(() => {
+    console.log('HTTP server closed');
+    process.exit(0);
+  });
 });
