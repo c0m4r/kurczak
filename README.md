@@ -41,6 +41,27 @@ Minimal Ollama chat UI — no login, no heavy features. Pick a model and chat. B
 
 4. Open `http://localhost:1234`.
 
+## 🐳 Docker
+
+1. Run Ollama
+
+```bash
+export OLLAMA_HOST=0.0.0.0
+ollama serve
+```
+
+2. Run Kurczak
+
+```bash
+docker build -t kurczak .
+docker run -d \
+  -p 1234:1234 \
+  -v $(pwd)/data:/app/data \
+  --add-host=host.docker.internal:host-gateway \
+  --name kurczak \
+  kurczak
+```
+
 ## 📂 Project layout
 
 ```
