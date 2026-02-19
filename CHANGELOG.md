@@ -2,10 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## 3.1.4 - 2026-02-15
+## 3.1.4 - 2026-02-19
 
 - simplified coding prompt
 - context lenght calculation improvements
+- docker integration
+- update helper scripts
+- Signals handling (SIGTERM/SIGINT)
 
 ## 3.1.3 - 2026-02-14
 
