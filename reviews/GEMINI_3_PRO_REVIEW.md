@@ -101,7 +101,7 @@ The application is a well-implemented, minimalist wrapper for Ollama. It follows
 
 ---
 
-### 6. Structured Output for Files (Deep Dive)
+### 6a. Structured Output for Files (Deep Dive)
 
 You asked for an elaboration on **Structured Output**.
 
@@ -123,7 +123,7 @@ The modern solution is **Tool Calling** (available in Ollama with models like Ll
 
 Instead of asking the model to "write text that looks like a file", we give the model a specific "Tool" (function) definition called `create_files`. The model will then decide to **call this function** with a strict JSON object containing the filenames and content.
 
-### Implementation Guide
+### 6b. Implementation Guide
 
 Here is how you would refactor Kurczak to use Tool Calling for 100% reliable file generation.
 
