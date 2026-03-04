@@ -113,6 +113,36 @@
     return tail.join('\n').trim();
   }
 
+  let updateFileTreeTimer = null;
+  function scheduleUpdateFileTree() {
+    if (generatedFiles.size > 0) {
+      if (fileExplorer) {
+        const isHidden = localStorage.getItem('kurczak_explorerHidden') === 'true';
+        if (isHidden) {
+          fileExplorer.classList.add('hidden');
+          if (explorerResizer) explorerResizer.classList.add('hidden');
+        } else {
+          fileExplorer.classList.remove('hidden');
+          if (explorerResizer) explorerResizer.classList.remove('hidden');
+        }
+      }
+      if (btnToggleExplorer) btnToggleExplorer.classList.remove('hidden');
+
+      if (!updateFileTreeTimer) {
+        updateFileTreeTimer = setTimeout(() => {
+          updateFileTreeTimer = null;
+          if (typeof buildTreeFromFiles === 'function') {
+            directoryTree = buildTreeFromFiles(generatedFiles);
+            if (fileTree) {
+              fileTree.innerHTML = '';
+              renderFileTree(directoryTree, fileTree);
+            }
+          }
+        }, 500);
+      }
+    }
+  }
+
   function renderMarkdown(text) {
     const raw = marked.parse(text || '');
     const sanitized = DOMPurify.sanitize(raw);
@@ -273,7 +303,8 @@
               `;
           fileLabel.textContent = `📁 ${filePath}`;
           fileLabel.title = `Click to open ${filePath}`;
-          fileLabel.addEventListener('click', () => {
+          fileLabel.addEventListener('mousedown', (e) => {
+            e.preventDefault();
             openFileModal(filePath, content);
           });
           wrap.insertBefore(fileLabel, wrap.firstChild);
@@ -284,20 +315,7 @@
 
     // Update file explorer after parsing
     if (generatedFiles.size > 0) {
-      if (fileExplorer) {
-        const isHidden = localStorage.getItem('kurczak_explorerHidden') === 'true';
-        if (isHidden) {
-          fileExplorer.classList.add('hidden');
-          if (explorerResizer) explorerResizer.classList.add('hidden');
-        } else {
-          fileExplorer.classList.remove('hidden');
-          if (explorerResizer) explorerResizer.classList.remove('hidden');
-        }
-      }
-      if (btnToggleExplorer) btnToggleExplorer.classList.remove('hidden');
-      directoryTree = buildTreeFromFiles(generatedFiles);
-      fileTree.innerHTML = '';
-      renderFileTree(directoryTree, fileTree);
+      scheduleUpdateFileTree();
     }
 
     return div;
@@ -553,14 +571,20 @@
     }
 
     const parts = extractThink(processedContent);
+    const isRawVisible = rawEl && !rawEl.classList.contains('hidden');
 
     contentEl.innerHTML = '';
     contentEl.appendChild(renderMarkdown(parts.visible));
 
     if (rawEl) {
       rawEl.textContent = content;
-      rawEl.classList.add('hidden');
-      contentEl.classList.remove('hidden');
+      if (isRawVisible) {
+        rawEl.classList.remove('hidden');
+        contentEl.classList.add('hidden');
+      } else {
+        rawEl.classList.add('hidden');
+        contentEl.classList.remove('hidden');
+      }
     }
 
     if (thinkingDetails && thinkingPre) {
@@ -658,10 +682,10 @@
         modelContextCache[model] = result;
         return result;
       })
-      .catch(() => { 
+      .catch(() => {
         // Failed to fetch context
-        modelContextCache[model] = { contextLength: null, contextLengthType: 'maximum' }; 
-        return { contextLength: null, contextLengthType: 'maximum' }; 
+        modelContextCache[model] = { contextLength: null, contextLengthType: 'maximum' };
+        return { contextLength: null, contextLengthType: 'maximum' };
       });
   }
 
@@ -677,7 +701,7 @@
     fetchModelContext(model).then((result) => {
       let text = '';
       let isExceeded = false;
-      
+
       if (result.contextLength != null) {
         const contextTypeLabel = result.contextLengthType === 'actual' ? 'actual' : 'max';
         text = 'Context: ~' + estimated + ' / ' + result.contextLength.toLocaleString() + ' (' + contextTypeLabel + ') tokens';
@@ -696,18 +720,18 @@
         messagesEl.appendChild(usageEl);
       }
       usageEl.textContent = text;
-      
+
       // Add warning class when exceeded
       if (isExceeded) {
         usageEl.classList.add('context-exceeded');
       } else {
         usageEl.classList.remove('context-exceeded');
       }
-      
+
       // Add class to indicate actual vs maximum context
       usageEl.classList.toggle('context-actual', result.contextLengthType === 'actual');
       usageEl.classList.toggle('context-maximum', result.contextLengthType === 'maximum');
-      
+
       // Ensure it stays at the bottom if we are already at bottom
       if (isNearBottom()) scrollToBottom();
     });
@@ -1090,11 +1114,11 @@
       const controller = new AbortController();
       state.abortController = controller;
       startedAtMs = Date.now();
-      
+
       // Clear context cache to force fresh check when model loads
       console.log(`🚀 Starting stream with model: ${model}`);
       Object.keys(modelContextCache).forEach(key => delete modelContextCache[key]);
-      
+
       fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1118,7 +1142,7 @@
         })
         .then((reader) => {
           setStreamingStatus(streamDiv, 'Waiting for response…');
-          
+
           const decoder = new TextDecoder();
           let buffer = '';
           let receivedChunks = false;
@@ -1225,7 +1249,7 @@
                   receivedChunks = true;
                   updateContextUsage();
                 }
-                
+
                 messagesRef[assistantDraftIndex].content = combined;
                 messagesRef[assistantDraftIndex].partial = true;
                 scheduleStreamingSave();
@@ -1282,13 +1306,13 @@
   btnSystemPrompt.addEventListener('click', () => {
     systemPromptRow.classList.toggle('hidden');
   });
-  modelSelect.addEventListener('change', () => { 
+  modelSelect.addEventListener('change', () => {
     const newModel = modelSelect.value;
     console.log(`🔄 Model changed to: ${newModel}`);
     // Clear all context cache when model changes to force fresh check
     Object.keys(modelContextCache).forEach(key => delete modelContextCache[key]);
     state.model = newModel;
-    updateContextUsage(); 
+    updateContextUsage();
   });
   btnSetDefault.addEventListener('click', () => {
     const model = modelSelect.value;
