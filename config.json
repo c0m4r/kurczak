@@ -1,5 +1,6 @@
 {
   "ollamaUrl": "http://localhost:11434",
+  "host": "127.0.0.1",
   "port": 1234,
   "defaultModel": "",
   "defaultSystemPrompt": "You are a helpful assistant. Use markdown in your responses. When you include code use proper markdown code blocks with a language tag (e.g. ```bash) so it can be syntax-highlighted. End your message with kurczak::status::done",

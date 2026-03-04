@@ -28,6 +28,25 @@ try {
 }
 
 const PORT = config.port || 1234;
+
+// Listen address: supports IPv4 (e.g. 0.0.0.0, 127.0.0.1) and IPv6 (e.g. ::, ::1)
+function isValidHost(host) {
+  if (!host || typeof host !== 'string') return false;
+  // IPv4
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return true;
+  // IPv6 (including :: shorthand)
+  if (/^[0-9a-fA-F:]+$/.test(host) && host.includes(':')) return true;
+  // Hostname (e.g. localhost)
+  if (/^[a-zA-Z0-9.-]+$/.test(host)) return true;
+  return false;
+}
+
+let HOST = config.host || '0.0.0.0';
+if (!isValidHost(HOST)) {
+  console.error(`Invalid host "${HOST}". Defaulting to 0.0.0.0`);
+  HOST = '0.0.0.0';
+}
+
 const DATA_DIR = join(__dirname, 'data');
 const HISTORY_DIR = join(DATA_DIR, 'history');
 
@@ -355,10 +374,12 @@ export { app };
 let server;
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf8'));
-  server = app.listen(PORT, () => {
+  server = app.listen(PORT, HOST, () => {
+    const addr = server.address();
+    const bound = addr.family === 'IPv6' ? `[${addr.address}]` : addr.address;
     console.log(`Starting\x1b[1m\x1b[32m Kurczak 🐣 v${pkg.version}\x1b[0m\n`);
     console.log(`\x1b[36mUsing Ollama API:\x1b[0m ${OLLAMA_URL}`);
-    console.log(`\x1b[36mKurczak UI:\x1b[0m http://localhost:${PORT}`);
+    console.log(`\x1b[36mKurczak UI:\x1b[0m http://${bound}:${addr.port}`);
   });
 }
 
