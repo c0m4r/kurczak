@@ -354,8 +354,11 @@ export { app };
 
 let server;
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf8'));
   server = app.listen(PORT, () => {
-    console.log(`Kurczak running at http://localhost:${PORT} (Ollama: ${OLLAMA_URL})`);
+    console.log(`Starting\x1b[1m\x1b[32m Kurczak 🐣 v${pkg.version}\x1b[0m\n`);
+    console.log(`\x1b[36mUsing Ollama API:\x1b[0m ${OLLAMA_URL}`);
+    console.log(`\x1b[36mKurczak UI:\x1b[0m http://localhost:${PORT}`);
   });
 }
 

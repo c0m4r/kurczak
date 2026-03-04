@@ -1006,17 +1006,270 @@ body {
 }
 
 /* Responsive adjustments */
+
+/* Medium screens: tighten spacing */
+@media (max-width: 1024px) {
+  :root {
+    --sidebar-w: 260px;
+    --explorer-w: 320px;
+  }
+
+  .message {
+    max-width: 100%;
+  }
+}
+
+/* Small screens: stack everything vertically */
 @media (max-width: 768px) {
-  .messages-area {
+  body {
+    overflow: auto;
+    height: auto;
+  }
+
+  .app {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  /* Sidebar becomes collapsible top section */
+  .sidebar {
+    width: 100% !important;
+    min-width: 0;
+    max-height: none;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  /* Hide sidebar resizer on mobile */
+  #sidebarResizer {
+    display: none !important;
+  }
+
+  /* History section: limit height so it scrolls */
+  .history-section {
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  /* Main area fills remaining space */
+  .main {
+    flex: 1;
+    min-height: 0;
+    display: flex;
     flex-direction: column;
   }
 
+  .messages-area {
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .messages {
+    padding: 12px;
+    min-height: 200px;
+  }
+
+  .message {
+    max-width: 100%;
+    padding: 10px 12px;
+  }
+
+  /* File explorer: full width below messages */
   .file-explorer {
     flex: 0 0 auto;
     min-width: 0;
-    width: 100%;
+    width: 100% !important;
     border-left: none;
     border-top: 1px solid var(--border);
+    max-height: 300px;
+  }
+
+  .file-explorer.hidden {
+    margin-right: 0;
+    transform: none;
+  }
+
+  /* Hide explorer resizer on mobile */
+  #explorerResizer {
+    display: none !important;
+  }
+
+  /* Input area: stack send-row vertically */
+  .input-area {
+    padding: 12px;
+  }
+
+  .send-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  #userInput {
+    width: 100%;
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .send-row .btn-send,
+  .send-row .btn-stop {
+    flex: 1 1 auto;
+  }
+
+  #btnSystemPrompt,
+  #btnToggleExplorer {
+    flex: 0 1 auto;
+    padding: 0 10px;
+    height: 38px;
+    font-size: 11px;
+  }
+
+  /* System prompt buttons: wrap */
+  .system-prompt-header {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .button-group {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .button-group .btn {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: center;
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  .system-prompt-row textarea {
+    font-size: 13px;
+  }
+
+  /* Sidebar header */
+  .sidebar-header {
+    padding: 12px;
+  }
+
+  /* Model row */
+  .model-row {
+    padding: 10px 12px;
+  }
+
+  /* Sidebar footer */
+  .sidebar-footer {
+    padding: 10px 12px;
+  }
+
+  .sidebar-footer .btn-theme {
+    height: 38px;
+    font-size: 11px;
+  }
+
+  /* Message meta row: wrap on small screens */
+  .message-meta-row {
+    gap: 6px;
+  }
+
+  .message-meta {
+    font-size: 10px;
+  }
+
+  .message-meta-row .btn {
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+
+  /* Context usage footer */
+  .context-usage-footer {
+    font-size: 10px;
+    padding: 6px 12px;
+  }
+
+  /* Toast */
+  .toast {
+    font-size: 12px;
+    padding: 8px 14px;
+    bottom: 12px;
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 480px) {
+  .sidebar-header {
+    padding: 10px;
+  }
+
+  .logo-link {
+    font-size: 1rem;
+  }
+
+  .messages {
+    padding: 8px;
+    gap: 10px;
+  }
+
+  .message {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  .message.assistant .content {
+    font-size: 13px;
+  }
+
+  .message .content pre code {
+    font-size: 11px;
+    padding: 10px 10px;
+    padding-top: 30px;
+  }
+
+  .input-area {
+    padding: 8px;
+  }
+
+  .send-row {
+    gap: 6px;
+  }
+
+  #userInput {
+    min-height: 38px;
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  .btn-send,
+  .btn-stop {
+    height: 38px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  #btnSystemPrompt,
+  #btnToggleExplorer {
+    height: 34px;
+    padding: 0 8px;
+    font-size: 10px;
+  }
+
+  .history-section {
+    max-height: 150px;
+  }
+
+  .file-explorer {
+    max-height: 250px;
+  }
+
+  .file-explorer-header {
+    padding: 10px;
+    gap: 6px;
+  }
+
+  .file-explorer-header h2 {
+    font-size: 12px;
   }
 }
 
