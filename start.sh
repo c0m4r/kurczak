@@ -2,6 +2,10 @@
 
 BASEDIR=$(dirname "$0")
 
-cd "$BASEDIR" || exit 1
-
-npm start
+if [ ! -d "$BASEDIR" ]; then
+    echo "ERROR: $BASEDIR not found"
+    exit 1
+else
+    cd "$BASEDIR"
+    npm start
+fi
