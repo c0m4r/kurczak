@@ -225,54 +225,74 @@ function getSafeHistoryPath(id) {
   return targetPath;
 }
 
-function listHistory() {
-  if (!existsSync(HISTORY_DIR)) return [];
-  return readdirSync(HISTORY_DIR)
-    .filter((f) => f.endsWith('.json'))
-    .map((f) => {
-      const id = f.replace(/\.json$/, '');
-      if (!isValidId(id)) return null;
+async function listHistory() {
+  try {
+    const fsP = await import('fs/promises');
+    await fsP.access(HISTORY_DIR).catch(() => { });
+    const files = await fsP.readdir(HISTORY_DIR).catch(() => []);
 
-      const path = join(HISTORY_DIR, f);
-      // Double check path safety just in case
-      const resolvedPath = resolve(path);
-      const resolvedHistoryDir = resolve(HISTORY_DIR);
-      if (!resolvedPath.startsWith(resolvedHistoryDir)) return null;
+    const results = await Promise.all(
+      files
+        .filter((f) => f.endsWith('.json'))
+        .map(async (f) => {
+          const id = f.replace(/\.json$/, '');
+          if (!isValidId(id)) return null;
 
-      const raw = readFileSync(path, 'utf8');
-      let title = 'Chat';
-      try {
-        const d = JSON.parse(raw);
-        const first = d.messages?.find((m) => m.role === 'user');
-        if (first?.content) title = String(first.content).slice(0, 60).replace(/\n/g, ' ');
-      } catch (_) { }
-      return { id, title, path, mtimeMs: existsSync(path) ? statSync(path).mtimeMs : 0 };
-    })
-    .filter(Boolean)
-    .sort((a, b) => b.mtimeMs - a.mtimeMs);
+          const path = join(HISTORY_DIR, f);
+          const resolvedPath = resolve(path);
+          const resolvedHistoryDir = resolve(HISTORY_DIR);
+          if (!resolvedPath.startsWith(resolvedHistoryDir)) return null;
+
+          try {
+            const [raw, stats] = await Promise.all([
+              fsP.readFile(path, 'utf8'),
+              fsP.stat(path)
+            ]);
+            let title = 'Chat';
+            try {
+              const d = JSON.parse(raw);
+              const first = d.messages?.find((m) => m.role === 'user');
+              if (first?.content) title = String(first.content).slice(0, 60).replace(/\n/g, ' ');
+            } catch (_) { }
+            return { id, title, path, mtimeMs: stats.mtimeMs };
+          } catch (_) {
+            return null;
+          }
+        })
+    );
+    return results.filter(Boolean).sort((a, b) => b.mtimeMs - a.mtimeMs);
+  } catch (e) {
+    return [];
+  }
 }
 
-app.get('/api/history', (req, res) => {
+app.get('/api/history', async (req, res) => {
   try {
-    const list = listHistory().map(({ id, title }) => ({ id, title }));
+    const list = (await listHistory()).map(({ id, title }) => ({ id, title }));
     res.json(list);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-app.get('/api/history/:id', fileSystemLimiter, (req, res) => {
+app.get('/api/history/:id', fileSystemLimiter, async (req, res) => {
   const file = getSafeHistoryPath(req.params.id);
-  if (!file || !existsSync(file)) return res.status(404).json({ error: 'Not found' });
+  if (!file) return res.status(404).json({ error: 'Not found' });
   try {
-    const data = JSON.parse(readFileSync(file, 'utf8'));
+    const fsP = await import('fs/promises');
+    const data = JSON.parse(await fsP.readFile(file, 'utf8'));
     res.json(data);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(404).json({ error: 'Not found' });
   }
 });
 
-app.post('/api/history', fileSystemLimiter, (req, res) => {
+function validateMessages(messages) {
+  if (!Array.isArray(messages)) return false;
+  return messages.every(m => typeof m === 'object' && m !== null && typeof m.role === 'string' && typeof m.content === 'string');
+}
+
+app.post('/api/history', fileSystemLimiter, async (req, res) => {
   let id = req.body.id;
   if (!id) {
     id = `chat_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -283,34 +303,47 @@ app.post('/api/history', fileSystemLimiter, (req, res) => {
   const file = getSafeHistoryPath(id);
   if (!file) return res.status(400).json({ error: 'Invalid ID' });
 
-  const payload = { id, model: req.body.model, systemPrompt: req.body.systemPrompt, messages: req.body.messages || [] };
+  const messages = req.body.messages || [];
+  if (!validateMessages(messages)) {
+    return res.status(400).json({ error: 'Invalid messages schema' });
+  }
+
+  const payload = { id, model: req.body.model, systemPrompt: req.body.systemPrompt, messages };
   try {
-    // Security: write with 600 permissions
-    writeFileSync(file, JSON.stringify(payload, null, 2), { encoding: 'utf8', mode: 0o600 });
+    const fsP = await import('fs/promises');
+    await fsP.writeFile(file, JSON.stringify(payload, null, 2), { encoding: 'utf8', mode: 0o600 });
     res.json({ id });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-app.put('/api/history/:id', fileSystemLimiter, (req, res) => {
+app.put('/api/history/:id', fileSystemLimiter, async (req, res) => {
   const file = getSafeHistoryPath(req.params.id);
-  if (!file || !existsSync(file)) return res.status(404).json({ error: 'Not found' });
+  if (!file) return res.status(404).json({ error: 'Not found' });
+
+  const messages = req.body.messages || [];
+  if (!validateMessages(messages)) {
+    return res.status(400).json({ error: 'Invalid messages schema' });
+  }
+
   try {
-    const payload = { id: req.params.id, model: req.body.model, systemPrompt: req.body.systemPrompt, messages: req.body.messages || [] };
-    // Security: write with 600 permissions
-    writeFileSync(file, JSON.stringify(payload, null, 2), { encoding: 'utf8', mode: 0o600 });
+    const fsP = await import('fs/promises');
+    await fsP.access(file); // Ensure exists
+    const payload = { id: req.params.id, model: req.body.model, systemPrompt: req.body.systemPrompt, messages };
+    await fsP.writeFile(file, JSON.stringify(payload, null, 2), { encoding: 'utf8', mode: 0o600 });
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(e.code === 'ENOENT' ? 404 : 500).json({ error: e.message });
   }
 });
 
-app.delete('/api/history/:id', fileSystemLimiter, (req, res) => {
+app.delete('/api/history/:id', fileSystemLimiter, async (req, res) => {
   const file = getSafeHistoryPath(req.params.id);
-  if (!file || !existsSync(file)) return res.status(404).json({ error: 'Not found' });
+  if (!file) return res.status(404).json({ error: 'Not found' });
   try {
-    unlinkSync(file);
+    const fsP = await import('fs/promises');
+    await fsP.unlink(file);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });

@@ -1156,8 +1156,9 @@
             return { content, thinking };
           }
 
-          function read() {
-            return reader.read().then(({ done, value }) => {
+          async function readStream() {
+            while (true) {
+              const { done, value } = await reader.read();
               if (done) {
                 if (buffer.trim()) {
                   try {
@@ -1259,10 +1260,9 @@
                 const d = getStreamDiv();
                 if (d) setStreamingStatus(d, 'Thinking…');
               }
-              return read();
-            });
+            }
           }
-          return read();
+          return readStream();
         })
         .catch((err) => {
           if (err && (err.name === 'AbortError' || String(err.message || '').toLowerCase().includes('aborted'))) {

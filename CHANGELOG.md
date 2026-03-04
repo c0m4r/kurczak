@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - fixed "switch to raw" state persistence during active streams
 - fixed missing `async` handling when loading system prompts in `/api/config`
 - added defensive checks for server instance presence during graceful shutdown (SIGTERM/SIGINT)
+- performance and reliability improvements
 
 ## 3.1.4 - 2026-02-19
 
