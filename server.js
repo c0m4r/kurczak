@@ -59,12 +59,25 @@ const fileSystemLimiter = rateLimit({
 
 app.use(globalLimiter);
 
-app.get('/api/config', fileSystemLimiter, (_, res) => {
+app.get('/api/config', fileSystemLimiter, async (_, res) => {
+  let codingSystemPrompt = '';
+  let codingSystemPromptSimple = '';
+  try {
+    if (existsSync(join(__dirname, 'prompts', 'coding-complex.md'))) {
+      codingSystemPrompt = await import('fs/promises').then(fs => fs.readFile(join(__dirname, 'prompts', 'coding-complex.md'), 'utf8'));
+    }
+    if (existsSync(join(__dirname, 'prompts', 'coding-simple.md'))) {
+      codingSystemPromptSimple = await import('fs/promises').then(fs => fs.readFile(join(__dirname, 'prompts', 'coding-simple.md'), 'utf8'));
+    }
+  } catch (e) {
+    console.error('Error reading prompts:', e);
+  }
+
   res.json({
     ollamaUrl: OLLAMA_URL,
     defaultSystemPrompt: config.defaultSystemPrompt || '',
-    codingSystemPrompt: existsSync(join(__dirname, 'prompts', 'coding-complex.md')) ? readFileSync(join(__dirname, 'prompts', 'coding-complex.md'), 'utf8') : '',
-    codingSystemPromptSimple: existsSync(join(__dirname, 'prompts', 'coding-simple.md')) ? readFileSync(join(__dirname, 'prompts', 'coding-simple.md'), 'utf8') : '',
+    codingSystemPrompt,
+    codingSystemPromptSimple,
     defaultModel: config.defaultModel || '',
     maxMessagesInContext: config.maxMessagesInContext != null ? config.maxMessagesInContext : 0,
   });
@@ -233,14 +246,10 @@ function listHistory() {
         const first = d.messages?.find((m) => m.role === 'user');
         if (first?.content) title = String(first.content).slice(0, 60).replace(/\n/g, ' ');
       } catch (_) { }
-      return { id, title, path };
+      return { id, title, path, mtimeMs: existsSync(path) ? statSync(path).mtimeMs : 0 };
     })
     .filter(Boolean)
-    .sort((a, b) => {
-      const sa = existsSync(a.path) ? statSync(a.path).mtimeMs : 0;
-      const sb = existsSync(b.path) ? statSync(b.path).mtimeMs : 0;
-      return sb - sa;
-    });
+    .sort((a, b) => b.mtimeMs - a.mtimeMs);
 }
 
 app.get('/api/history', (req, res) => {
@@ -308,23 +317,36 @@ app.delete('/api/history/:id', fileSystemLimiter, (req, res) => {
   }
 });
 
-const server = app.listen(PORT, () => {
-  console.log(`Kurczak running at http://localhost:${PORT} (Ollama: ${OLLAMA_URL})`);
-});
+export { app };
+
+let server;
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  server = app.listen(PORT, () => {
+    console.log(`Kurczak running at http://localhost:${PORT} (Ollama: ${OLLAMA_URL})`);
+  });
+}
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('SIGTERM signal received: closing HTTP server');
-  server.close(() => {
-    console.log('HTTP server closed');
+  if (server) {
+    server.close(() => {
+      console.log('HTTP server closed');
+      process.exit(0);
+    });
+  } else {
     process.exit(0);
-  });
+  }
 });
 
 process.on('SIGINT', () => {
   console.log('SIGINT signal received: closing HTTP server');
-  server.close(() => {
-    console.log('HTTP server closed');
+  if (server) {
+    server.close(() => {
+      console.log('HTTP server closed');
+      process.exit(0);
+    });
+  } else {
     process.exit(0);
-  });
+  }
 });
