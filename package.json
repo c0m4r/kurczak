@@ -10,7 +10,7 @@
   },
   "engines": {
     "npm": ">=11.10.0"
-  }
+  },
   "dependencies": {
     "express": "4.22.1",
     "express-rate-limit": "8.3.2"
