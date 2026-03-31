@@ -9,7 +9,7 @@
     "dev": "node --watch server.js"
   },
   "dependencies": {
-    "express": "^4.21.0",
-    "express-rate-limit": "^8.2.1"
+    "express": "4.22.1",
+    "express-rate-limit": "8.3.2"
   }
 }
