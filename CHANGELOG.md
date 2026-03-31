@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 4.0.0 - 2026-03-31
+
+- switch to express v5
+- fix completion signal (kurczak::status::done) handling
+- system prompts rewrite
+- close system prompt modal when sending a message
+
 ## 3.2.0 - 2026-03-04
 
 - backend test suite

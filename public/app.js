@@ -105,6 +105,13 @@
     return { visible, thinking };
   }
 
+  function stripStatusPhrase(text) {
+    // Remove kurczak::status::done from rendered output
+    // Only from visible content, not from thinking blocks
+    const s = String(text || '');
+    return s.replace(/\s*kurczak::status::done\s*$/m, '').trim();
+  }
+
   function lastLines(text, count) {
     const s = String(text || '');
     if (!s) return '';
@@ -394,7 +401,7 @@
     rawEl.className = 'raw-content hidden';
     rawEl.setAttribute('aria-label', 'Raw response');
     if (content) {
-      contentEl.appendChild(renderMarkdown(parts.visible));
+      contentEl.appendChild(renderMarkdown(stripStatusPhrase(parts.visible)));
       rawEl.textContent = content;
       if (parts.thinking) {
         thinkingPre.textContent = parts.thinking;
@@ -574,7 +581,7 @@
     const isRawVisible = rawEl && !rawEl.classList.contains('hidden');
 
     contentEl.innerHTML = '';
-    contentEl.appendChild(renderMarkdown(parts.visible));
+    contentEl.appendChild(renderMarkdown(stripStatusPhrase(parts.visible)));
 
     if (rawEl) {
       rawEl.textContent = content;
@@ -983,6 +990,10 @@
     if (!model) {
       showToast('Select a model first');
       return;
+    }
+    // Close system prompt modal when sending
+    if (systemPromptRow && !systemPromptRow.classList.contains('hidden')) {
+      systemPromptRow.classList.add('hidden');
     }
     state.model = model;
     const sys = systemPrompt.value.trim();
