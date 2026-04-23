@@ -1,6 +1,6 @@
 {
   "name": "kurczak",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "Minimal Ollama chat UI",
   "type": "module",
   "main": "server.js",
