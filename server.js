@@ -58,6 +58,37 @@ const app = express();
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(join(__dirname, 'public')));
 
+// Security: CORS — only allow same-origin reads; block cross-origin entirely
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    try {
+      if (new URL(origin).host === req.headers.host) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      }
+    } catch (_) {}
+  }
+  res.setHeader('Vary', 'Origin');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
+
+// Security: CSRF protection — reject cross-origin state-changing requests
+function rejectCrossOrigin(req, res, next) {
+  const origin = req.headers.origin;
+  if (!origin) return next();
+  try {
+    if (new URL(origin).host !== req.headers.host) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+  } catch (_) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  next();
+}
+
 // Security: Global rate limiter using express-rate-limit
 const globalLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
@@ -176,7 +207,7 @@ app.get('/api/model-info', async (req, res) => {
   }
 });
 
-app.post('/api/chat', async (req, res) => {
+app.post('/api/chat', rejectCrossOrigin, async (req, res) => {
   const url = `${OLLAMA_URL}/api/chat`;
   try {
     const controller = new AbortController();
@@ -311,7 +342,7 @@ function validateMessages(messages) {
   return messages.every(m => typeof m === 'object' && m !== null && typeof m.role === 'string' && typeof m.content === 'string');
 }
 
-app.post('/api/history', fileSystemLimiter, async (req, res) => {
+app.post('/api/history', fileSystemLimiter, rejectCrossOrigin, async (req, res) => {
   let id = req.body.id;
   if (!id) {
     id = `chat_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -337,7 +368,7 @@ app.post('/api/history', fileSystemLimiter, async (req, res) => {
   }
 });
 
-app.put('/api/history/:id', fileSystemLimiter, async (req, res) => {
+app.put('/api/history/:id', fileSystemLimiter, rejectCrossOrigin, async (req, res) => {
   const file = getSafeHistoryPath(req.params.id);
   if (!file) return res.status(404).json({ error: 'Not found' });
 
@@ -357,7 +388,7 @@ app.put('/api/history/:id', fileSystemLimiter, async (req, res) => {
   }
 });
 
-app.delete('/api/history/:id', fileSystemLimiter, async (req, res) => {
+app.delete('/api/history/:id', fileSystemLimiter, rejectCrossOrigin, async (req, res) => {
   const file = getSafeHistoryPath(req.params.id);
   if (!file) return res.status(404).json({ error: 'Not found' });
   try {
