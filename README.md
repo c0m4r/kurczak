@@ -20,6 +20,17 @@ Minimal Ollama chat UI — no login, no heavy features. Pick a model and chat. B
 - **History** — Disk-based JSON storage for conversations
 - **Config** — Customizable Ollama URL, port, and prompts
 
+## 💾Download
+
+Clone this repository:
+
+```bash
+git clone https://github.com/c0m4r/kurczak.git
+cd kurczak
+```
+
+or grab .zip or .tar.gz archive at [Releases](https://github.com/c0m4r/kurczak/releases)
+
 ## ⚙️ Setup
 
 1. Install dependencies:
