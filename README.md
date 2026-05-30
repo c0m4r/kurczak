@@ -20,7 +20,7 @@ Minimal Ollama chat UI — no login, no heavy features. Pick a model and chat. B
 - **History** — Disk-based JSON storage for conversations
 - **Config** — Customizable Ollama URL, port, and prompts
 
-## 💾Download
+## 💾 Download
 
 Clone this repository:
 
