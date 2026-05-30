@@ -2,8 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
-## 4.0.1 - TBA
+## 4.0.1 - 2026-05-30
 
+- drop the completion marker and show a live spinner while streaming instead
 - sec: add strict CORS safeguards against CSRF
 
 ## 4.0.0 - 2026-03-31

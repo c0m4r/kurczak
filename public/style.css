@@ -102,22 +102,63 @@ body {
   font-style: italic;
 }
 
-.message.finished {
-  border-color: var(--success);
-  position: relative;
+/* Live "Generating…" indicator — visible only while a message is streaming */
+.streaming-indicator {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
 }
 
-.message.finished::after {
-  content: "✓ Finished";
-  position: absolute;
-  bottom: -10px;
-  right: 12px;
-  background: var(--success);
-  color: white;
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-weight: bold;
+.message.assistant.streaming .streaming-indicator {
+  display: inline-flex;
+}
+
+.streaming-spinner {
+  width: 11px;
+  height: 11px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.streaming-label {
+  animation: streamPulse 1.4s ease-in-out infinite;
+}
+
+/* Subtle accent border so it's obvious which message is still generating */
+.message.assistant.streaming {
+  border-color: var(--accent);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes streamPulse {
+
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .streaming-spinner,
+  .streaming-label {
+    animation: none;
+  }
 }
 
 .model-row {

@@ -45,9 +45,3 @@ app.listen(3000);
 3. List dependencies or requirements clearly
 4. Include setup/installation instructions if needed
 5. Explain any complex logic with comments in code
-
-## Completion Signal
-
-**You MUST end every response with:** `kurczak::status::done`
-
-This signal is required for the UI to recognize completion.

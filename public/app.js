@@ -105,11 +105,12 @@
     return { visible, thinking };
   }
 
-  function stripStatusPhrase(text) {
-    // Remove kurczak::status::done from rendered output
-    // Only from visible content, not from thinking blocks
-    const s = String(text || '');
-    return s.replace(/\s*kurczak::status::done\s*$/m, '').trim();
+  // Backward compat: older chats were saved while the model was instructed to
+  // append a "kurczak::status::done" completion marker. That mechanism is gone,
+  // but legacy histories still contain it — strip it from the rendered view so
+  // it doesn't show as stray text. New responses no longer contain it.
+  function stripLegacyDoneMarker(text) {
+    return String(text || '').replace(/\s*kurczak::status::done\s*$/m, '').trim();
   }
 
   function lastLines(text, count) {
@@ -332,15 +333,25 @@
     const parts = extractThink(content || '');
     const wrap = document.createElement('div');
     wrap.className = 'message assistant' + (isStreaming ? ' streaming' : '');
-    if (content && content.includes('kurczak::status::done')) {
-      wrap.classList.add('finished');
-    }
     if (meta && meta.msgId) wrap.dataset.msgId = meta.msgId;
     const metaRow = document.createElement('div');
     metaRow.className = 'message-meta-row';
     const metaEl = document.createElement('span');
     metaEl.className = 'message-meta';
     metaEl.textContent = formatAssistantMeta(meta);
+
+    // Live "Generating…" indicator — shown only while the message has the
+    // `streaming` class (toggled off in finishStreamingUI / on error / on stop).
+    const streamingIndicator = document.createElement('span');
+    streamingIndicator.className = 'streaming-indicator';
+    streamingIndicator.setAttribute('aria-live', 'polite');
+    const spinner = document.createElement('span');
+    spinner.className = 'streaming-spinner';
+    const streamingLabel = document.createElement('span');
+    streamingLabel.className = 'streaming-label';
+    streamingLabel.textContent = 'Generating…';
+    streamingIndicator.appendChild(spinner);
+    streamingIndicator.appendChild(streamingLabel);
     const rawBtn = document.createElement('button');
     rawBtn.type = 'button';
     rawBtn.className = 'btn btn-ghost btn-sm';
@@ -375,6 +386,7 @@
     delBtn.addEventListener('click', () => deleteMessage(meta.msgId));
 
     metaRow.appendChild(metaEl);
+    metaRow.appendChild(streamingIndicator);
     metaRow.appendChild(rawBtn);
     metaRow.appendChild(copyBtn);
     metaRow.appendChild(delBtn);
@@ -401,7 +413,7 @@
     rawEl.className = 'raw-content hidden';
     rawEl.setAttribute('aria-label', 'Raw response');
     if (content) {
-      contentEl.appendChild(renderMarkdown(stripStatusPhrase(parts.visible)));
+      contentEl.appendChild(renderMarkdown(stripLegacyDoneMarker(parts.visible)));
       rawEl.textContent = content;
       if (parts.thinking) {
         thinkingPre.textContent = parts.thinking;
@@ -571,17 +583,11 @@
 
     div.classList.remove('status');
 
-    let processedContent = content;
-    // Check for done status
-    if (processedContent.includes('kurczak::status::done')) {
-      div.classList.add('finished');
-    }
-
-    const parts = extractThink(processedContent);
+    const parts = extractThink(content);
     const isRawVisible = rawEl && !rawEl.classList.contains('hidden');
 
     contentEl.innerHTML = '';
-    contentEl.appendChild(renderMarkdown(stripStatusPhrase(parts.visible)));
+    contentEl.appendChild(renderMarkdown(stripLegacyDoneMarker(parts.visible)));
 
     if (rawEl) {
       rawEl.textContent = content;

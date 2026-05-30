@@ -40,9 +40,3 @@ kurczak::file::ProjectName/README.md
 3. Use meaningful variable and function names
 4. Explain your approach in plain language
 5. Specify any dependencies needed
-
-## Completion Signal
-
-**You MUST end your response with:** `kurczak::status::done`
-
-This signal tells the UI your response is complete.
