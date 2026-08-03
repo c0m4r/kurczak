@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 5.0.0 - 2026-08-03
+
+- redesign the chat as a focused local AI workspace with a clearer reading hierarchy and composer
+- add searchable conversation history, starter prompts, conversation context, and keyboard shortcuts
+- replace the mobile stacked layout with responsive off-canvas navigation
+- improve theme handling, focus states, status feedback, and accessible control labels
+- refresh the model selector, generated file explorer, message actions, and empty states
+
 ## 4.0.1 - 2026-05-30
 
 - drop the completion marker and show a live spinner while streaming instead

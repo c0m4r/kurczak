@@ -11,9 +11,20 @@
   const btnStop = document.getElementById('btnStop');
   const systemPromptRow = document.getElementById('systemPromptRow');
   const historyList = document.getElementById('historyList');
+  const historySearch = document.getElementById('historySearch');
+  const historyCount = document.getElementById('historyCount');
+  const chatTitle = document.getElementById('chatTitle');
+  const chatSubtitle = document.getElementById('chatSubtitle');
+  const contextUsage = document.getElementById('contextUsage');
+  const connectionState = document.getElementById('connectionState');
+  const sidebar = document.getElementById('sidebar');
+  const btnOpenSidebar = document.getElementById('btnOpenSidebar');
+  const btnCloseSidebar = document.getElementById('btnCloseSidebar');
+  const sidebarBackdrop = document.getElementById('sidebarBackdrop');
 
   const toast = document.getElementById('toast');
   const btnTheme = document.getElementById('btnTheme');
+  const themeLabel = document.getElementById('themeLabel');
   const fileExplorer = document.getElementById('fileExplorer');
   const explorerResizer = document.getElementById('explorerResizer');
   const fileTree = document.getElementById('fileTree');
@@ -29,14 +40,21 @@
   };
 
   function getTheme() {
-    return localStorage.getItem('kurczak_theme') || 'dark';
+    const savedTheme = localStorage.getItem('kurczak_theme');
+    if (savedTheme === 'light' || savedTheme === 'dark') return savedTheme;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
   }
 
   function setTheme(theme) {
     document.body.setAttribute('data-theme', theme);
     if (highlightStyleLink) highlightStyleLink.href = HIGHLIGHT_STYLES[theme] || HIGHLIGHT_STYLES.dark;
     localStorage.setItem('kurczak_theme', theme);
-    if (btnTheme) btnTheme.textContent = theme === 'dark' ? '☀️ Switch to light' : '🌙 Switch to dark';
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    if (themeLabel) themeLabel.textContent = `${nextTheme[0].toUpperCase()}${nextTheme.slice(1)} mode`;
+    if (btnTheme) {
+      btnTheme.title = `Switch to ${nextTheme} mode`;
+      btnTheme.setAttribute('aria-label', `Switch to ${nextTheme} mode`);
+    }
   }
 
   function toggleTheme() {
@@ -62,6 +80,47 @@
     activeStream: null,
     systemPromptPreset: 'default',
   };
+
+  let historyItems = [];
+  let loadedHistoryTitle = '';
+
+  function closeSidebar() {
+    document.body.classList.remove('sidebar-visible');
+    if (btnOpenSidebar) btnOpenSidebar.setAttribute('aria-expanded', 'false');
+  }
+
+  function openSidebar() {
+    document.body.classList.add('sidebar-visible');
+    if (btnOpenSidebar) btnOpenSidebar.setAttribute('aria-expanded', 'true');
+    window.setTimeout(() => {
+      if (btnCloseSidebar) btnCloseSidebar.focus();
+    }, 220);
+  }
+
+  function getConversationTitle() {
+    if (loadedHistoryTitle) return loadedHistoryTitle;
+    const firstUserMessage = state.messages.find((message) => message.role === 'user' && message.content);
+    if (!firstUserMessage) return 'New conversation';
+    const singleLine = String(firstUserMessage.content).replace(/\s+/g, ' ').trim();
+    return singleLine.length > 58 ? `${singleLine.slice(0, 57)}…` : singleLine;
+  }
+
+  function updateConversationHeading() {
+    if (chatTitle) chatTitle.textContent = getConversationTitle();
+    if (!chatSubtitle) return;
+
+    const model = modelSelect.value || state.model;
+    if (state.streaming) {
+      chatSubtitle.textContent = model ? `${model} is responding` : 'Generating a response';
+    } else if (model) {
+      const messageCount = state.messages.length;
+      chatSubtitle.textContent = messageCount
+        ? `${model} · ${messageCount} ${messageCount === 1 ? 'message' : 'messages'}`
+        : `${model} · Ready`;
+    } else {
+      chatSubtitle.textContent = 'Choose a model and start a conversation';
+    }
+  }
 
   marked.setOptions({ breaks: true });
 
@@ -333,6 +392,7 @@
     const parts = extractThink(content || '');
     const wrap = document.createElement('div');
     wrap.className = 'message assistant' + (isStreaming ? ' streaming' : '');
+    wrap.setAttribute('aria-label', 'Kurczak response');
     if (meta && meta.msgId) wrap.dataset.msgId = meta.msgId;
     const metaRow = document.createElement('div');
     metaRow.className = 'message-meta-row';
@@ -354,13 +414,17 @@
     streamingIndicator.appendChild(streamingLabel);
     const rawBtn = document.createElement('button');
     rawBtn.type = 'button';
-    rawBtn.className = 'btn btn-ghost btn-sm';
+    rawBtn.className = 'btn btn-ghost btn-sm btn-raw';
     rawBtn.textContent = 'Switch to raw';
+    rawBtn.title = 'View the unformatted response';
+    rawBtn.setAttribute('aria-pressed', 'false');
 
     const copyBtn = document.createElement('button');
     copyBtn.type = 'button';
     copyBtn.className = 'btn btn-ghost btn-sm btn-copy-msg';
     copyBtn.textContent = 'Copy';
+    copyBtn.title = 'Copy response';
+    copyBtn.setAttribute('aria-label', 'Copy response');
     copyBtn.addEventListener('click', () => {
       const body = wrap.querySelector('.message-body');
       const rawEl = body ? body.querySelector('.raw-content') : null;
@@ -383,6 +447,7 @@
     delBtn.className = 'btn btn-ghost btn-sm btn-del';
     delBtn.textContent = '🗑️';
     delBtn.title = 'Delete message';
+    delBtn.setAttribute('aria-label', 'Delete response');
     delBtn.addEventListener('click', () => deleteMessage(meta.msgId));
 
     metaRow.appendChild(metaEl);
@@ -428,7 +493,9 @@
     rawBtn.addEventListener('click', () => {
       contentEl.classList.toggle('hidden');
       rawEl.classList.toggle('hidden');
-      rawBtn.textContent = rawEl.classList.contains('hidden') ? 'Switch to raw' : 'Switch to rendered';
+      const showingRaw = !rawEl.classList.contains('hidden');
+      rawBtn.textContent = showingRaw ? 'Switch to rendered' : 'Switch to raw';
+      rawBtn.setAttribute('aria-pressed', String(showingRaw));
     });
     body.appendChild(thinkingDetails);
     body.appendChild(contentEl);
@@ -523,6 +590,7 @@
     }
     const div = document.createElement('div');
     div.className = `message ${role}`;
+    div.setAttribute('aria-label', role === 'user' ? 'Your message' : `${role} message`);
     if (meta && meta.msgId) div.dataset.msgId = meta.msgId;
     if (meta && meta.createdAt) {
       const metaRow = document.createElement('div');
@@ -537,6 +605,8 @@
       copyBtn.type = 'button';
       copyBtn.className = 'btn btn-ghost btn-sm btn-copy-msg user-copy';
       copyBtn.textContent = 'Copy';
+      copyBtn.title = 'Copy message';
+      copyBtn.setAttribute('aria-label', 'Copy your message');
       copyBtn.addEventListener('click', () => {
         if (navigator.clipboard) {
           navigator.clipboard.writeText(content).then(() => showToast('Copied!'));
@@ -557,6 +627,7 @@
       delBtn.className = 'btn btn-ghost btn-sm btn-del user-del';
       delBtn.textContent = '🗑️';
       delBtn.title = 'Delete message';
+      delBtn.setAttribute('aria-label', 'Delete your message');
       delBtn.addEventListener('click', () => deleteMessage(meta.msgId));
       metaRow.appendChild(delBtn);
 
@@ -654,8 +725,42 @@
     if (state.messages.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'messages-empty';
-      empty.textContent = 'Start a conversation or pick one from history.';
+      const content = document.createElement('div');
+      content.className = 'empty-content';
+      content.innerHTML = `
+        <div class="empty-mark" aria-hidden="true">🐣</div>
+        <h2>What are we working on?</h2>
+        <p>Think through an idea, solve a technical problem, or build something new with a model running on your machine.</p>
+        <div class="starter-grid" aria-label="Conversation starters"></div>
+      `;
+
+      const starters = [
+        { icon: '✦', title: 'Explore an idea', description: 'Help me think through a new idea', prompt: 'Help me think through a new idea. Start by asking what I am trying to achieve.' },
+        { icon: '</>', title: 'Build something', description: 'Plan and build a small project', prompt: 'Help me plan and build a small project. Ask me about the goal and constraints first.' },
+        { icon: '⌁', title: 'Debug a problem', description: 'Find the cause, then explain the fix', prompt: 'Help me debug a problem. Ask for the relevant error and context, then guide me to the root cause.' },
+        { icon: '↗', title: 'Improve my work', description: 'Review and sharpen what I have', prompt: 'Review something I am working on and help me improve it. Ask me to share it first.' },
+      ];
+      const starterGrid = content.querySelector('.starter-grid');
+      starters.forEach((starter) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'starter-card';
+        button.innerHTML = `<span class="starter-icon" aria-hidden="true"></span><strong></strong><span></span>`;
+        button.querySelector('.starter-icon').textContent = starter.icon;
+        button.querySelector('strong').textContent = starter.title;
+        button.querySelector('span:last-child').textContent = starter.description;
+        button.addEventListener('click', () => {
+          userInput.value = starter.prompt;
+          autoResizeTextarea(userInput, 10);
+          userInput.focus();
+          userInput.setSelectionRange(userInput.value.length, userInput.value.length);
+        });
+        starterGrid.appendChild(button);
+      });
+
+      empty.appendChild(content);
       messagesEl.appendChild(empty);
+      updateConversationHeading();
       updateContextUsage();
       return;
     }
@@ -668,6 +773,7 @@
       }
     });
     scrollToBottom();
+    updateConversationHeading();
     updateContextUsage();
   }
 
@@ -704,7 +810,13 @@
 
   function updateContextUsage() {
     const model = modelSelect.value;
-    if (!model) return;
+    if (!model) {
+      if (contextUsage) {
+        contextUsage.textContent = '';
+        contextUsage.className = 'context-usage-header';
+      }
+      return;
+    }
 
     const sys = systemPrompt.value.trim();
     let recent = state.messages;
@@ -713,26 +825,28 @@
 
     fetchModelContext(model).then((result) => {
       let text = '';
+      let accessibleText = '';
       let isExceeded = false;
 
       if (result.contextLength != null) {
         const contextTypeLabel = result.contextLengthType === 'actual' ? 'actual' : 'max';
-        text = 'Context: ~' + estimated + ' / ' + result.contextLength.toLocaleString() + ' (' + contextTypeLabel + ') tokens';
+        text = '~' + estimated.toLocaleString() + ' / ' + result.contextLength.toLocaleString() + ' tokens';
+        accessibleText = 'Estimated context: ' + estimated.toLocaleString() + ' of ' + result.contextLength.toLocaleString() + ' ' + contextTypeLabel + ' tokens';
         isExceeded = estimated > result.contextLength;
         if (isExceeded) {
-          text += ' ⚠️ EXCEEDED';
+          text += ' · Exceeded';
+          accessibleText += '. Context window exceeded.';
         }
       } else {
-        text = 'Context: ~' + estimated + ' tokens';
+        text = '~' + estimated.toLocaleString() + ' tokens';
+        accessibleText = 'Estimated context: ' + estimated.toLocaleString() + ' tokens';
       }
 
-      let usageEl = messagesEl.querySelector('.context-usage-footer');
-      if (!usageEl) {
-        usageEl = document.createElement('div');
-        usageEl.className = 'context-usage-footer';
-        messagesEl.appendChild(usageEl);
-      }
+      const usageEl = contextUsage;
+      if (!usageEl) return;
       usageEl.textContent = text;
+      usageEl.title = accessibleText;
+      usageEl.classList.add('visible');
 
       // Add warning class when exceeded
       if (isExceeded) {
@@ -744,9 +858,6 @@
       // Add class to indicate actual vs maximum context
       usageEl.classList.toggle('context-actual', result.contextLengthType === 'actual');
       usageEl.classList.toggle('context-maximum', result.contextLengthType === 'maximum');
-
-      // Ensure it stays at the bottom if we are already at bottom
-      if (isNearBottom()) scrollToBottom();
     });
   }
 
@@ -755,6 +866,7 @@
   let configDefaultSystemPrompt = '';
   let configCodingSystemPrompt = '';
   let configCodingSystemPromptSimple = '';
+  let knownModelsSignature = null;
   function loadConfig() {
     return fetch('/api/config')
       .then((r) => r.json())
@@ -776,6 +888,7 @@
             btns.forEach(b => {
               if (b.dataset.value === val) {
                 b.classList.add('active');
+                b.setAttribute('aria-pressed', 'true');
                 if (updateValue) {
                   if (val === 'default') systemPrompt.value = configDefaultSystemPrompt;
                   else if (val === 'coding-simple') systemPrompt.value = configCodingSystemPromptSimple;
@@ -784,6 +897,7 @@
                 }
               } else {
                 b.classList.remove('active');
+                b.setAttribute('aria-pressed', 'false');
               }
             });
             updateContextUsage();
@@ -815,19 +929,35 @@
         return r.json();
       })
       .then((models) => {
+        models = Array.isArray(models) ? models : [];
         modelSelect.classList.remove('hidden');
         modelStatus.classList.add('hidden');
-        modelSelect.innerHTML = '';
-        const opt = document.createElement('option');
-        opt.value = '';
-        opt.textContent = 'Select model…';
-        modelSelect.appendChild(opt);
-        (models || []).forEach((m) => {
-          const o = document.createElement('option');
-          o.value = m.name;
-          o.textContent = m.name;
-          modelSelect.appendChild(o);
-        });
+        modelSelect.disabled = models.length === 0;
+        if (connectionState) {
+          connectionState.classList.remove('offline');
+          connectionState.lastChild.textContent = 'Local';
+        }
+
+        const signature = models.map((model) => model.name).join('\n');
+        if (signature !== knownModelsSignature) {
+          const selectedBeforeRefresh = modelSelect.value || state.model;
+          modelSelect.innerHTML = '';
+          const opt = document.createElement('option');
+          opt.value = '';
+          opt.textContent = models.length ? 'Select a model…' : 'No models available';
+          modelSelect.appendChild(opt);
+          models.forEach((m) => {
+            const o = document.createElement('option');
+            o.value = m.name;
+            o.textContent = m.name;
+            modelSelect.appendChild(o);
+          });
+          if (selectedBeforeRefresh && models.some((model) => model.name === selectedBeforeRefresh)) {
+            modelSelect.value = selectedBeforeRefresh;
+          }
+          knownModelsSignature = signature;
+        }
+
         const defaultModel = localStorage.getItem('kurczak_defaultModel') || configDefaultModel;
         if (state.model && models.some((m) => m.name === state.model)) {
           modelSelect.value = state.model;
@@ -835,44 +965,98 @@
           modelSelect.value = defaultModel;
           state.model = defaultModel;
         }
+        if (btnSetDefault) {
+          const isDefault = Boolean(modelSelect.value && modelSelect.value === defaultModel);
+          btnSetDefault.classList.toggle('is-default', isDefault);
+          btnSetDefault.setAttribute('aria-pressed', String(isDefault));
+          btnSetDefault.title = isDefault
+            ? 'This model is used for new conversations'
+            : 'Use selected model for new conversations';
+        }
+        updateConversationHeading();
         updateContextUsage();
       })
       .catch(() => {
         modelSelect.classList.add('hidden');
         modelStatus.classList.remove('hidden');
+        if (connectionState) {
+          connectionState.classList.add('offline');
+          connectionState.lastChild.textContent = 'Offline';
+        }
+        updateConversationHeading();
       });
   }
 
   // Poll for models every 5 seconds
   setInterval(loadModels, 5000);
 
+  function renderHistoryItems() {
+    const query = historySearch ? historySearch.value.trim().toLocaleLowerCase() : '';
+    const filteredItems = query
+      ? historyItems.filter((item) => String(item.title || 'Chat').toLocaleLowerCase().includes(query))
+      : historyItems;
+
+    historyList.innerHTML = '';
+    if (historyCount) historyCount.textContent = historyItems.length ? String(historyItems.length) : '';
+
+    if (filteredItems.length === 0) {
+      const empty = document.createElement('li');
+      empty.className = 'history-empty';
+      empty.textContent = query ? 'No conversations match your search.' : 'Your conversations will appear here.';
+      historyList.appendChild(empty);
+      return;
+    }
+
+    filteredItems.forEach((item) => {
+      const itemTitle = item.title || 'Untitled conversation';
+      const li = document.createElement('li');
+      li.dataset.id = item.id;
+      if (state.currentId === item.id) {
+        li.classList.add('active');
+      }
+
+      const openButton = document.createElement('button');
+      openButton.type = 'button';
+      openButton.className = 'history-open';
+      openButton.setAttribute('aria-label', `Open ${itemTitle}`);
+      if (state.currentId === item.id) openButton.setAttribute('aria-current', 'true');
+      const title = document.createElement('span');
+      title.className = 'history-title';
+      title.textContent = itemTitle;
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'history-delete';
+      del.textContent = 'Delete';
+      del.title = `Delete ${itemTitle}`;
+      del.setAttribute('aria-label', `Delete ${itemTitle}`);
+      del.addEventListener('click', (event) => {
+        event.stopPropagation();
+        if (confirm(`Delete “${itemTitle}”? This cannot be undone.`)) {
+          deleteHistory(item.id);
+        }
+      });
+
+      const openItem = () => {
+        loadConversation(item.id);
+        closeSidebar();
+      };
+      openButton.appendChild(title);
+      li.appendChild(openButton);
+      li.appendChild(del);
+      openButton.addEventListener('click', openItem);
+      historyList.appendChild(li);
+    });
+  }
+
   function loadHistory() {
     return fetch('/api/history')
       .then((r) => r.json())
       .then((list) => {
-        historyList.innerHTML = '';
-        list.forEach((item) => {
-          const li = document.createElement('li');
-          li.dataset.id = item.id;
-          if (state.currentId === item.id) li.classList.add('active');
-          const title = document.createElement('span');
-          title.className = 'history-title';
-          title.textContent = item.title || 'Chat';
-          const del = document.createElement('button');
-          del.type = 'button';
-          del.className = 'history-delete';
-          del.textContent = 'Delete';
-          del.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (confirm('Are you sure you want to delete this chat history?')) {
-              deleteHistory(item.id);
-            }
-          });
-          li.appendChild(title);
-          li.appendChild(del);
-          li.addEventListener('click', () => loadConversation(item.id));
-          historyList.appendChild(li);
-        });
+        historyItems = Array.isArray(list) ? list : [];
+        const activeItem = historyItems.find((item) => item.id === state.currentId);
+        if (activeItem && activeItem.title) loadedHistoryTitle = activeItem.title;
+        renderHistoryItems();
+        updateConversationHeading();
       });
   }
 
@@ -882,6 +1066,7 @@
         if (r.ok && state.currentId === id) {
           state.currentId = null;
           state.messages = [];
+          loadedHistoryTitle = '';
           renderMessages();
         }
         loadHistory();
@@ -903,6 +1088,8 @@
       .then((r) => r.json())
       .then((data) => {
         state.currentId = data.id;
+        const historyItem = historyItems.find((item) => item.id === data.id);
+        loadedHistoryTitle = data.title || (historyItem && historyItem.title) || '';
         if (state.activeStream && state.activeStream.chatId === data.id) {
           state.model = state.activeStream.model || data.model || '';
           state.messages = state.activeStream.messagesRef;
@@ -910,7 +1097,7 @@
         } else {
           state.model = data.model || '';
           state.messages = data.messages || [];
-          if (data.systemPrompt) systemPrompt.value = data.systemPrompt;
+          systemPrompt.value = data.systemPrompt != null ? data.systemPrompt : configDefaultSystemPrompt;
         }
         modelSelect.value = state.model;
         renderMessages();
@@ -932,16 +1119,20 @@
         }
 
         loadHistory();
-      });
+      })
+      .catch(() => showToast('Could not open that conversation'));
   }
 
   function newChat() {
     resetExplorer();
     state.currentId = null;
     state.messages = [];
+    loadedHistoryTitle = '';
     if (window.setSystemPromptPreset) window.setSystemPromptPreset('default');
     renderMessages();
     loadHistory();
+    closeSidebar();
+    window.setTimeout(() => userInput.focus(), 0);
   }
 
   function saveConversation() {
@@ -1021,8 +1212,10 @@
       ? [{ role: 'system', content: sys }, ...forApi]
       : forApi;
     userInput.value = '';
+    autoResizeTextarea(userInput, 10);
     renderMessages();
     state.streaming = true;
+    updateConversationHeading();
     btnSend.disabled = true;
     if (btnStop) btnStop.classList.remove('hidden');
     let streamDiv = null;
@@ -1080,6 +1273,7 @@
 
     function finishStreamingUI() {
       state.streaming = false;
+      updateConversationHeading();
       btnSend.disabled = false;
       if (btnStop) btnStop.classList.add('hidden');
       if (btnStop) btnStop.onclick = null;
@@ -1191,6 +1385,7 @@
                         genSeconds: startedAtMs != null ? (Date.now() - startedAtMs) / 1000 : undefined,
                       };
                       state.streaming = false;
+                      updateConversationHeading();
                       btnSend.disabled = false;
                       streamDiv.classList.remove('streaming');
                       const existingMeta = streamDiv.querySelector('.message-meta');
@@ -1245,6 +1440,7 @@
                       genSeconds: startedAtMs != null ? (Date.now() - startedAtMs) / 1000 : undefined,
                     };
                     state.streaming = false;
+                    updateConversationHeading();
                     btnSend.disabled = false;
                     streamDiv.classList.remove('streaming');
                     const existingMeta = streamDiv.querySelector('.message-meta');
@@ -1321,21 +1517,33 @@
     newChat();
   });
   btnSystemPrompt.addEventListener('click', () => {
-    systemPromptRow.classList.toggle('hidden');
+    const willOpen = systemPromptRow.classList.contains('hidden');
+    systemPromptRow.classList.toggle('hidden', !willOpen);
+    btnSystemPrompt.setAttribute('aria-expanded', String(willOpen));
+    if (willOpen) window.setTimeout(() => systemPrompt.focus(), 0);
   });
   modelSelect.addEventListener('change', () => {
     const newModel = modelSelect.value;
-    console.log(`🔄 Model changed to: ${newModel}`);
     // Clear all context cache when model changes to force fresh check
     Object.keys(modelContextCache).forEach(key => delete modelContextCache[key]);
     state.model = newModel;
+    const defaultModel = localStorage.getItem('kurczak_defaultModel') || configDefaultModel;
+    if (btnSetDefault) {
+      const isDefault = Boolean(newModel && newModel === defaultModel);
+      btnSetDefault.classList.toggle('is-default', isDefault);
+      btnSetDefault.setAttribute('aria-pressed', String(isDefault));
+    }
+    updateConversationHeading();
     updateContextUsage();
   });
   btnSetDefault.addEventListener('click', () => {
     const model = modelSelect.value;
     if (model) {
       localStorage.setItem('kurczak_defaultModel', model);
-      showToast('Default model set');
+      btnSetDefault.classList.add('is-default');
+      btnSetDefault.setAttribute('aria-pressed', 'true');
+      btnSetDefault.title = 'This model is used for new conversations';
+      showToast(`${model} is now your default model`);
     } else {
       showToast('Select a model first');
     }
@@ -1349,11 +1557,53 @@
 
   userInput.addEventListener('input', () => autoResizeTextarea(userInput, 10));
   if (btnTheme) btnTheme.addEventListener('click', toggleTheme);
+  if (historySearch) historySearch.addEventListener('input', renderHistoryItems);
+  if (btnOpenSidebar) {
+    btnOpenSidebar.setAttribute('aria-controls', 'sidebar');
+    btnOpenSidebar.setAttribute('aria-expanded', 'false');
+    btnOpenSidebar.addEventListener('click', openSidebar);
+  }
+  if (btnCloseSidebar) btnCloseSidebar.addEventListener('click', closeSidebar);
+  if (sidebarBackdrop) sidebarBackdrop.addEventListener('click', closeSidebar);
+
+  document.addEventListener('keydown', (event) => {
+    const target = event.target;
+    const isTyping = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement;
+
+    if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === 'k') {
+      event.preventDefault();
+      newChat();
+      return;
+    }
+
+    if (event.key === '/' && !isTyping && historySearch) {
+      event.preventDefault();
+      if (window.matchMedia('(max-width: 860px)').matches) openSidebar();
+      window.setTimeout(() => historySearch.focus(), window.matchMedia('(max-width: 860px)').matches ? 220 : 0);
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      if (!systemPromptRow.classList.contains('hidden')) {
+        systemPromptRow.classList.add('hidden');
+        btnSystemPrompt.setAttribute('aria-expanded', 'false');
+        btnSystemPrompt.focus();
+      } else {
+        closeSidebar();
+      }
+    }
+  });
+
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 860) closeSidebar();
+    autoResizeTextarea(userInput, 10);
+  });
 
   function toggleExplorer() {
     if (!fileExplorer) return;
     const isHidden = fileExplorer.classList.toggle('hidden');
     if (explorerResizer) explorerResizer.classList.toggle('hidden', isHidden);
+    if (btnToggleExplorer) btnToggleExplorer.setAttribute('aria-expanded', String(!isHidden));
     localStorage.setItem('kurczak_explorerHidden', isHidden);
   }
 
@@ -1912,11 +2162,15 @@
 
   function init() {
     setTheme(getTheme());
-    autoResizeTextarea(userInput, 10);
+    renderMessages();
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => autoResizeTextarea(userInput, 10));
+    });
     loadConfig()
       .then(loadModels)
       .then(loadHistory)
-      .then(renderMessages);
+      .then(renderMessages)
+      .catch(() => showToast('Kurczak could not finish loading'));
   }
   init();
 })();
