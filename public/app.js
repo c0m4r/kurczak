@@ -2082,6 +2082,15 @@
     if (storedExplorer != null) setCssVar('--explorer-w', storedExplorer);
   }
 
+  function resetPanelSize(which) {
+    const panel = which === 'sidebar'
+      ? { cssVar: '--sidebar-w', storageKey: 'kurczak_sidebar_w' }
+      : { cssVar: '--explorer-w', storageKey: 'kurczak_explorer_w' };
+
+    document.documentElement.style.removeProperty(panel.cssVar);
+    localStorage.removeItem(panel.storageKey);
+  }
+
   function startResize(e, which) {
     if (e.button !== 0) return;
     e.preventDefault();
@@ -2120,6 +2129,8 @@
   initPanelSizes();
   if (sidebarResizer) sidebarResizer.addEventListener('mousedown', (e) => startResize(e, 'sidebar'));
   if (explorerResizer) explorerResizer.addEventListener('mousedown', (e) => startResize(e, 'explorer'));
+  if (sidebarResizer) sidebarResizer.addEventListener('dblclick', () => resetPanelSize('sidebar'));
+  if (explorerResizer) explorerResizer.addEventListener('dblclick', () => resetPanelSize('explorer'));
 
   // Manual trigger for parsing (for testing)
   window.parseFiles = function () {
