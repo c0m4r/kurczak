@@ -32,6 +32,7 @@
   const contextUsage = document.getElementById('contextUsage');
   const connectionState = document.getElementById('connectionState');
   const sidebar = document.getElementById('sidebar');
+  const messagesArea = document.getElementById('messagesArea');
   const btnOpenSidebar = document.getElementById('btnOpenSidebar');
   const btnCloseSidebar = document.getElementById('btnCloseSidebar');
   const sidebarBackdrop = document.getElementById('sidebarBackdrop');
@@ -2061,8 +2062,26 @@
 
 
   // Panel resizing (sidebar + explorer)
+  // Keep these in sync with the responsive split-pane limits in style.css.
+  const EXPLORER_MIN_WIDTH = 260;
+  const EXPLORER_MAX_WIDTH = 640;
+  const EXPLORER_MAX_SHARE = 0.48;
+  const CHAT_MIN_WIDTH = 520;
+
   function clamp(n, min, max) {
     return Math.max(min, Math.min(max, n));
+  }
+
+  function getExplorerMaxWidth() {
+    const areaWidth = messagesArea ? messagesArea.getBoundingClientRect().width : window.innerWidth;
+    const resizerWidth = explorerResizer ? explorerResizer.getBoundingClientRect().width : 0;
+    const responsiveMax = Math.min(
+      EXPLORER_MAX_WIDTH,
+      areaWidth * EXPLORER_MAX_SHARE,
+      areaWidth - CHAT_MIN_WIDTH - resizerWidth
+    );
+
+    return Math.max(EXPLORER_MIN_WIDTH, responsiveMax);
   }
 
   function setCssVar(name, valuePx) {
@@ -2109,7 +2128,7 @@
       }
 
       if (which === 'explorer') {
-        const next = clamp(startExplorerW - dx, 260, 900);
+        const next = clamp(startExplorerW - dx, EXPLORER_MIN_WIDTH, getExplorerMaxWidth());
         setCssVar('--explorer-w', next);
         localStorage.setItem('kurczak_explorer_w', String(Math.round(next)));
       }

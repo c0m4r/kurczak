@@ -866,7 +866,7 @@ body {
 .file-explorer.hidden {
   display: flex;
   /* Keep layout but hide visually */
-  margin-right: calc(var(--explorer-w) * -1);
+  margin-right: calc(0px - var(--explorer-size));
   transform: translateX(100%);
 }
 
@@ -977,6 +977,20 @@ body {
 
 /* Messages area layout (message list + explorer) */
 .messages-area {
+  /* Preserve a readable chat column while the explorer is resized. */
+  --explorer-min-w: 260px;
+  --explorer-max-w: 640px;
+  --explorer-max-share: 48%;
+  --chat-min-w: 520px;
+  --explorer-size: max(
+    var(--explorer-min-w),
+    min(
+      var(--explorer-w),
+      var(--explorer-max-w),
+      var(--explorer-max-share),
+      calc(100% - var(--chat-min-w) - var(--resizer-w))
+    )
+  );
   display: flex;
   flex: 1;
   min-height: 0;
@@ -994,8 +1008,8 @@ body {
 
 /* Explorer sits on the right */
 .file-explorer {
-  flex: 0 0 var(--explorer-w);
-  min-width: 260px;
+  flex: 0 0 var(--explorer-size);
+  min-width: var(--explorer-min-w);
   background: var(--bg-panel);
   border-left: 1px solid var(--border);
   display: flex;
@@ -1010,7 +1024,7 @@ body {
 
 .file-explorer.hidden {
   display: flex !important;
-  margin-right: calc(var(--explorer-w) * -1);
+  margin-right: calc(0px - var(--explorer-size));
   transform: translateX(100%);
   opacity: 0;
   pointer-events: none;
