@@ -342,6 +342,10 @@ function validateMessages(messages) {
   return messages.every(m => typeof m === 'object' && m !== null && typeof m.role === 'string' && typeof m.content === 'string');
 }
 
+function normalizeSystemPromptPreset(value) {
+  return ['default', 'coding-simple', 'coding-complex'].includes(value) ? value : 'default';
+}
+
 app.post('/api/history', fileSystemLimiter, rejectCrossOrigin, async (req, res) => {
   let id = req.body.id;
   if (!id) {
@@ -358,7 +362,13 @@ app.post('/api/history', fileSystemLimiter, rejectCrossOrigin, async (req, res) 
     return res.status(400).json({ error: 'Invalid messages schema' });
   }
 
-  const payload = { id, model: req.body.model, systemPrompt: req.body.systemPrompt, messages };
+  const payload = {
+    id,
+    model: req.body.model,
+    systemPrompt: req.body.systemPrompt,
+    systemPromptPreset: normalizeSystemPromptPreset(req.body.systemPromptPreset),
+    messages,
+  };
   try {
     const fsP = await import('fs/promises');
     await fsP.writeFile(file, JSON.stringify(payload, null, 2), { encoding: 'utf8', mode: 0o600 });
@@ -380,7 +390,13 @@ app.put('/api/history/:id', fileSystemLimiter, rejectCrossOrigin, async (req, re
   try {
     const fsP = await import('fs/promises');
     await fsP.access(file); // Ensure exists
-    const payload = { id: req.params.id, model: req.body.model, systemPrompt: req.body.systemPrompt, messages };
+    const payload = {
+      id: req.params.id,
+      model: req.body.model,
+      systemPrompt: req.body.systemPrompt,
+      systemPromptPreset: normalizeSystemPromptPreset(req.body.systemPromptPreset),
+      messages,
+    };
     await fsP.writeFile(file, JSON.stringify(payload, null, 2), { encoding: 'utf8', mode: 0o600 });
     res.json({ ok: true });
   } catch (e) {

@@ -116,9 +116,13 @@
         <div class="panel-resizer hidden" id="explorerResizer" aria-label="Resize explorer" role="separator"></div>
         <aside class="file-explorer hidden" id="fileExplorer">
           <div class="file-explorer-header">
-            <div>
-              <span class="eyebrow">Generated project</span>
-              <h2>File explorer</h2>
+            <div class="file-explorer-title">
+              <span class="eyebrow">Project workspace</span>
+              <div class="file-explorer-title-row">
+                <h2>Generated files</h2>
+                <span class="file-count" id="generatedFileCount">0 files</span>
+              </div>
+              <p>Complete files captured from Project builder responses.</p>
             </div>
             <div class="file-explorer-controls">
               <button type="button" class="btn btn-ghost btn-sm" id="btnDownloadZip" title="Download project as ZIP">
@@ -139,20 +143,78 @@
       <div class="input-area">
         <div class="composer-container">
           <div class="system-prompt-row hidden" id="systemPromptRow">
-            <div class="system-prompt-header">
-              <div class="system-prompt-copy">
-                <span class="eyebrow">Model behavior</span>
-                <label for="systemPrompt">System instructions</label>
+            <div class="behavior-panel-header">
+              <div>
+                <span class="eyebrow">Conversation setting</span>
+                <h2 id="modelBehaviorTitle">Model behavior</h2>
+                <p>Choose how much structure this model should follow.</p>
               </div>
-              <div class="button-group" id="systemPromptButtons" aria-label="System instruction presets">
-                <button type="button" class="btn btn-outline btn-sm active" data-value="default">General</button>
-                <button type="button" class="btn btn-outline btn-sm" data-value="coding-simple">Quick code</button>
-                <button type="button" class="btn btn-outline btn-sm" data-value="coding-complex">Deep code</button>
-                <button type="button" class="btn btn-outline btn-sm" data-value="none">Off</button>
+              <button type="button" class="btn btn-icon" id="btnCloseSystemPrompt" title="Close model behavior"
+                aria-label="Close model behavior">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" /></svg>
+              </button>
+            </div>
+
+            <div class="behavior-picker">
+              <div class="behavior-slider" id="systemPromptButtons" role="radiogroup"
+                aria-label="Model behavior" style="--active-index: 0">
+                <span class="behavior-slider-thumb" aria-hidden="true"></span>
+                <button type="button" class="behavior-option active" data-value="default" role="radio"
+                  aria-checked="true">
+                  <span class="behavior-option-icon" aria-hidden="true">✦</span>
+                  <span>General</span>
+                </button>
+                <button type="button" class="behavior-option" data-value="coding-simple" role="radio"
+                  aria-checked="false">
+                  <span class="behavior-option-icon" aria-hidden="true">&lt;/&gt;</span>
+                  <span>Simple coder</span>
+                </button>
+                <button type="button" class="behavior-option" data-value="coding-complex" role="radio"
+                  aria-checked="false">
+                  <span class="behavior-option-icon" aria-hidden="true">▦</span>
+                  <span>Project builder</span>
+                </button>
+              </div>
+
+              <div class="behavior-summary" id="behaviorSummary" aria-live="polite">
+                <span class="behavior-summary-icon" id="behaviorSummaryIcon" aria-hidden="true">✦</span>
+                <div class="behavior-summary-copy">
+                  <strong id="behaviorSummaryTitle">General assistant</strong>
+                  <p id="behaviorSummaryDescription">Balanced instructions for questions, writing, and everyday help.</p>
+                  <div class="behavior-badges">
+                    <span id="behaviorFitBadge">Any model</span>
+                    <span id="behaviorExplorerBadge">Normal chat</span>
+                  </div>
+                </div>
               </div>
             </div>
-            <textarea id="systemPrompt" rows="6"
-              placeholder="Add instructions that should apply to every response in this conversation."></textarea>
+
+            <div class="custom-prompt-section">
+              <div class="custom-prompt-heading">
+                <div>
+                  <label for="customPromptToggle">Prompt editor</label>
+                  <p>Optional—fine-tune the selected behavior for this conversation.</p>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="customPromptToggle" aria-controls="customPromptEditor" />
+                  <span class="toggle-track" aria-hidden="true"><span></span></span>
+                  <span class="sr-only">Show prompt editor</span>
+                </label>
+              </div>
+
+              <div class="custom-prompt-editor hidden" id="customPromptEditor">
+                <div class="prompt-editor-toolbar">
+                  <label for="systemPrompt">Prompt sent to the model</label>
+                  <span id="promptEditStatus">Mode default</span>
+                </div>
+                <textarea id="systemPrompt" rows="8"
+                  placeholder="The selected behavior prompt appears here."></textarea>
+                <div class="prompt-editor-footer">
+                  <span id="promptCharCount">0 characters</span>
+                  <button type="button" class="btn btn-ghost btn-sm" id="btnResetPrompt">Reset to mode default</button>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="composer-shell">
@@ -161,9 +223,10 @@
             <div class="send-row">
               <div class="composer-tools">
                 <button type="button" class="btn btn-ghost btn-sm" id="btnSystemPrompt"
-                  title="Edit system instructions" aria-expanded="false" aria-controls="systemPromptRow">
+                  title="Change model behavior" aria-expanded="false" aria-controls="systemPromptRow">
                   <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" /><circle cx="12" cy="12" r="4" /></svg>
-                  <span>Instructions</span>
+                  <span id="behaviorButtonLabel">General</span>
+                  <i class="behavior-custom-indicator hidden" id="behaviorCustomIndicator" aria-label="Customized prompt"></i>
                 </button>
               </div>
               <div class="composer-actions">
@@ -225,7 +288,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
     integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"
     crossorigin="anonymous"></script>
-  <script src="/app.js" integrity="sha384-2yauwGULsetbGv0EEXXZu5Yyd0OAQI7FNb4auUZjbdcAii7KK0d5uOAaJvz3mf8m"
+  <script src="/app.js" integrity="sha384-q61xXtrTANjYXT2SWfTYBJHMnleoiaFALYOUMWjZ/LAIg1puJVuFMXV/EjMtP9cL"
     crossorigin="anonymous"></script>
 </body>
 

@@ -24,6 +24,10 @@ test('Application API Tests', async (t) => {
         const data = await res.json();
         assert.ok('ollamaUrl' in data, 'Ollama URL should be present in config');
         assert.ok('defaultSystemPrompt' in data, 'Default System Prompt should be present');
+        assert.ok(data.codingSystemPromptSimple, 'Simple coder prompt should be present');
+        assert.ok(data.codingSystemPrompt, 'Project builder prompt should be present');
+        assert.doesNotMatch(data.codingSystemPromptSimple, /kurczak::file::/, 'Simple coder must not invoke file capture');
+        assert.match(data.codingSystemPrompt, /kurczak::file::relative\/path\.ext/, 'Project builder should include the file protocol');
     });
 
     await t.test('GET /api/history', async () => {
@@ -47,7 +51,11 @@ test('Application API Tests', async (t) => {
         const res = await fetch(`${baseUrl}/api/history`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ messages: [{ role: 'user', content: 'test msg' }] })
+            body: JSON.stringify({
+                systemPrompt: 'Simple prompt',
+                systemPromptPreset: 'coding-simple',
+                messages: [{ role: 'user', content: 'test msg' }]
+            })
         });
         assert.equal(res.status, 200, 'Should save history successfully');
         const data = await res.json();
@@ -61,6 +69,24 @@ test('Application API Tests', async (t) => {
         const data = await res.json();
         assert.equal(data.id, createdId);
         assert.equal(data.messages[0].content, 'test msg');
+        assert.equal(data.systemPromptPreset, 'coding-simple');
+    });
+
+    await t.test('PUT /api/history/:id - preserve behavior mode', async () => {
+        const res = await fetch(`${baseUrl}/api/history/${createdId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                systemPrompt: 'Project prompt',
+                systemPromptPreset: 'coding-complex',
+                messages: [{ role: 'user', content: 'test msg' }]
+            })
+        });
+        assert.equal(res.status, 200, 'Should update history successfully');
+
+        const readRes = await fetch(`${baseUrl}/api/history/${createdId}`);
+        const data = await readRes.json();
+        assert.equal(data.systemPromptPreset, 'coding-complex');
     });
 
     await t.test('DELETE /api/history/:id', async () => {

@@ -3,6 +3,6 @@
   "host": "127.0.0.1",
   "port": 1234,
   "defaultModel": "",
-  "defaultSystemPrompt": "You are a helpful assistant. Use markdown in your responses. When you include code use proper markdown code blocks with a language tag (e.g. ```bash) so it can be syntax-highlighted.",
+  "defaultSystemPrompt": "You are a helpful assistant. Answer directly and accurately. Use concise Markdown when it improves clarity. If essential information is missing, ask a short clarifying question. Do not invent facts or claim actions you did not perform. Put code in fenced blocks with the correct language tag.",
   "maxMessagesInContext": 0
 }

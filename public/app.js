@@ -10,6 +10,20 @@
   const btnSetDefault = document.getElementById('btnSetDefault');
   const btnStop = document.getElementById('btnStop');
   const systemPromptRow = document.getElementById('systemPromptRow');
+  const promptButtons = document.getElementById('systemPromptButtons');
+  const btnCloseSystemPrompt = document.getElementById('btnCloseSystemPrompt');
+  const customPromptToggle = document.getElementById('customPromptToggle');
+  const customPromptEditor = document.getElementById('customPromptEditor');
+  const btnResetPrompt = document.getElementById('btnResetPrompt');
+  const promptEditStatus = document.getElementById('promptEditStatus');
+  const promptCharCount = document.getElementById('promptCharCount');
+  const behaviorSummaryIcon = document.getElementById('behaviorSummaryIcon');
+  const behaviorSummaryTitle = document.getElementById('behaviorSummaryTitle');
+  const behaviorSummaryDescription = document.getElementById('behaviorSummaryDescription');
+  const behaviorFitBadge = document.getElementById('behaviorFitBadge');
+  const behaviorExplorerBadge = document.getElementById('behaviorExplorerBadge');
+  const behaviorButtonLabel = document.getElementById('behaviorButtonLabel');
+  const behaviorCustomIndicator = document.getElementById('behaviorCustomIndicator');
   const historyList = document.getElementById('historyList');
   const historySearch = document.getElementById('historySearch');
   const historyCount = document.getElementById('historyCount');
@@ -28,6 +42,7 @@
   const fileExplorer = document.getElementById('fileExplorer');
   const explorerResizer = document.getElementById('explorerResizer');
   const fileTree = document.getElementById('fileTree');
+  const generatedFileCount = document.getElementById('generatedFileCount');
   const btnDownloadZip = document.getElementById('btnDownloadZip');
   const btnCloseExplorer = document.getElementById('btnCloseExplorer');
   const btnToggleExplorer = document.getElementById('btnToggleExplorer');
@@ -83,6 +98,40 @@
 
   let historyItems = [];
   let loadedHistoryTitle = '';
+  let promptDrafts = {};
+
+  const BEHAVIOR_MODES = {
+    default: {
+      index: 0,
+      label: 'General',
+      icon: '✦',
+      title: 'General assistant',
+      description: 'Balanced instructions for questions, writing, and everyday help.',
+      fit: 'Any model',
+      explorer: 'Normal chat',
+      explorerEnabled: false,
+    },
+    'coding-simple': {
+      index: 1,
+      label: 'Simple coder',
+      icon: '</>',
+      title: 'Simple coder',
+      description: 'Short, low-ambiguity coding instructions with normal code snippets.',
+      fit: 'Small-model friendly',
+      explorer: 'Snippets only',
+      explorerEnabled: false,
+    },
+    'coding-complex': {
+      index: 2,
+      label: 'Project builder',
+      icon: '▦',
+      title: 'Project builder',
+      description: 'Structured complete-file output that Kurczak can capture as a project.',
+      fit: 'For capable models',
+      explorer: 'File explorer enabled',
+      explorerEnabled: true,
+    },
+  };
 
   function closeSidebar() {
     document.body.classList.remove('sidebar-visible');
@@ -119,6 +168,108 @@
         : `${model} · Ready`;
     } else {
       chatSubtitle.textContent = 'Choose a model and start a conversation';
+    }
+  }
+
+  function getPresetPrompt(preset) {
+    if (preset === 'coding-simple') return configCodingSystemPromptSimple;
+    if (preset === 'coding-complex') return configCodingSystemPrompt;
+    return configDefaultSystemPrompt;
+  }
+
+  function promptsMatch(a, b) {
+    return String(a || '').trim() === String(b || '').trim();
+  }
+
+  function inferPresetFromPrompt(prompt) {
+    if (promptsMatch(prompt, configCodingSystemPromptSimple)) return 'coding-simple';
+    if (promptsMatch(prompt, configCodingSystemPrompt)) return 'coding-complex';
+    return 'default';
+  }
+
+  function updatePromptCustomizationState() {
+    const basePrompt = getPresetPrompt(state.systemPromptPreset);
+    const customized = !promptsMatch(systemPrompt.value, basePrompt);
+    if (promptEditStatus) {
+      promptEditStatus.textContent = customized ? 'Customized' : 'Mode default';
+      promptEditStatus.classList.toggle('customized', customized);
+    }
+    if (promptCharCount) {
+      const count = systemPrompt.value.length;
+      promptCharCount.textContent = `${count.toLocaleString()} ${count === 1 ? 'character' : 'characters'}`;
+    }
+    if (btnResetPrompt) btnResetPrompt.disabled = !customized;
+    if (behaviorCustomIndicator) behaviorCustomIndicator.classList.toggle('hidden', !customized);
+  }
+
+  function updateBehaviorUI() {
+    const mode = BEHAVIOR_MODES[state.systemPromptPreset] || BEHAVIOR_MODES.default;
+    if (promptButtons) {
+      promptButtons.style.setProperty('--active-index', String(mode.index));
+      promptButtons.querySelectorAll('.behavior-option').forEach((button) => {
+        const active = button.dataset.value === state.systemPromptPreset;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-checked', String(active));
+        button.tabIndex = active ? 0 : -1;
+      });
+    }
+    if (behaviorSummaryIcon) behaviorSummaryIcon.textContent = mode.icon;
+    if (behaviorSummaryTitle) behaviorSummaryTitle.textContent = mode.title;
+    if (behaviorSummaryDescription) behaviorSummaryDescription.textContent = mode.description;
+    if (behaviorFitBadge) behaviorFitBadge.textContent = mode.fit;
+    if (behaviorExplorerBadge) {
+      behaviorExplorerBadge.textContent = mode.explorer;
+      behaviorExplorerBadge.classList.toggle('explorer-enabled', mode.explorerEnabled);
+    }
+    if (behaviorButtonLabel) behaviorButtonLabel.textContent = mode.label;
+    if (btnSystemPrompt) btnSystemPrompt.title = `Model behavior: ${mode.label}`;
+    updatePromptCustomizationState();
+  }
+
+  function setSystemPromptPreset(value, updateValue = true, rememberCurrent = true) {
+    const nextPreset = BEHAVIOR_MODES[value] ? value : 'default';
+    const previousPreset = BEHAVIOR_MODES[state.systemPromptPreset] ? state.systemPromptPreset : 'default';
+
+    if (updateValue && rememberCurrent) {
+      promptDrafts[previousPreset] = systemPrompt.value;
+    }
+
+    state.systemPromptPreset = nextPreset;
+    if (updateValue) {
+      systemPrompt.value = Object.prototype.hasOwnProperty.call(promptDrafts, nextPreset)
+        ? promptDrafts[nextPreset]
+        : getPresetPrompt(nextPreset);
+    } else {
+      promptDrafts[nextPreset] = systemPrompt.value;
+    }
+
+    updateBehaviorUI();
+    updateContextUsage();
+  }
+
+  function setPromptEditorOpen(open, focusEditor = false) {
+    if (customPromptToggle) customPromptToggle.checked = open;
+    if (customPromptEditor) customPromptEditor.classList.toggle('hidden', !open);
+    localStorage.setItem('kurczak_promptEditorOpen', String(open));
+    if (open && focusEditor) {
+      window.setTimeout(() => {
+        systemPrompt.focus();
+        systemPrompt.setSelectionRange(0, 0);
+        systemPrompt.scrollTop = 0;
+      }, 0);
+    }
+  }
+
+  function setBehaviorPanelOpen(open, returnFocus = false) {
+    systemPromptRow.classList.toggle('hidden', !open);
+    btnSystemPrompt.setAttribute('aria-expanded', String(open));
+    if (open) {
+      window.setTimeout(() => {
+        const activeOption = promptButtons && promptButtons.querySelector('.behavior-option.active');
+        if (activeOption) activeOption.focus();
+      }, 0);
+    } else if (returnFocus) {
+      btnSystemPrompt.focus();
     }
   }
 
@@ -181,8 +332,17 @@
   }
 
   let updateFileTreeTimer = null;
+  function updateGeneratedFileCount() {
+    const count = generatedFiles.size;
+    if (generatedFileCount) generatedFileCount.textContent = `${count} ${count === 1 ? 'file' : 'files'}`;
+    if (btnToggleExplorer) {
+      btnToggleExplorer.title = count ? `Open ${count} generated ${count === 1 ? 'file' : 'files'}` : 'Toggle file explorer';
+    }
+  }
+
   function scheduleUpdateFileTree() {
     if (generatedFiles.size > 0) {
+      updateGeneratedFileCount();
       if (fileExplorer) {
         const isHidden = localStorage.getItem('kurczak_explorerHidden') === 'true';
         if (isHidden) {
@@ -208,6 +368,19 @@
         }, 500);
       }
     }
+  }
+
+  function normalizeGeneratedPath(rawPath) {
+    let path = String(rawPath || '').trim();
+    path = path.replace(/^[`'"\s]+|[`'"\s]+$/g, '').replace(/\\/g, '/');
+    while (path.startsWith('./')) path = path.slice(2);
+
+    if (!path || path.length > 240 || path.startsWith('/') || /^[a-zA-Z]:/.test(path)) return null;
+    if (/[\u0000-\u001f<>:"|?*]/.test(path)) return null;
+
+    const parts = path.split('/');
+    if (parts.length > 24 || parts.some((part) => !part || part === '.' || part === '..' || part.length > 100)) return null;
+    return parts.join('/');
   }
 
   function renderMarkdown(text) {
@@ -245,7 +418,7 @@
     }
 
     function dedupeFilePathAndSet(path, content) {
-      const p = String(path || '').trim();
+      const p = normalizeGeneratedPath(path);
       if (!p) return;
 
       const parts = p.split('/');
@@ -288,17 +461,17 @@
 
       if (prev) {
         if (prev.nodeType === 1) { // Element
-          const text = prev.textContent || '';
-          const match = text.match(/kurczak::file::([^\s]+)/);
+          const text = (prev.textContent || '').trim();
+          const match = text.match(/^kurczak::file::(.+)$/);
           if (match) {
-            filePath = match[1];
+            filePath = normalizeGeneratedPath(match[1]);
             tagNode = prev;
           }
         } else if (prev.nodeType === 3) { // Text
-          const text = prev.textContent || '';
-          const match = text.match(/kurczak::file::([^\s]+)/);
+          const text = (prev.textContent || '').trim();
+          const match = text.match(/^kurczak::file::(.+)$/);
           if (match) {
-            filePath = match[1];
+            filePath = normalizeGeneratedPath(match[1]);
             tagNode = prev;
           }
         }
@@ -321,7 +494,7 @@
           for (const pattern of patterns) {
             const match = text.match(pattern);
             if (match) {
-              filePath = match[1];
+              filePath = normalizeGeneratedPath(match[1]);
               break;
             }
           }
@@ -356,24 +529,12 @@
         dedupeFilePathAndSet(filePath, content);
 
         if (!wrap.querySelector('.file-path-label')) {
-          const fileLabel = document.createElement('div');
+          const fileLabel = document.createElement('button');
+          fileLabel.type = 'button';
           fileLabel.className = 'file-path-label';
-          fileLabel.style.cssText = `
-                background: var(--accent);
-                color: white;
-                padding: 4px 8px;
-                font-size: 12px;
-                border-radius: 4px 4px 0 0;
-                margin-bottom: -1px;
-                font-family: var(--font);
-                cursor: pointer;
-              `;
-          fileLabel.textContent = `📁 ${filePath}`;
+          fileLabel.textContent = filePath;
           fileLabel.title = `Click to open ${filePath}`;
-          fileLabel.addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            openFileModal(filePath, content);
-          });
+          fileLabel.addEventListener('click', () => openFileModal(filePath, content));
           wrap.insertBefore(fileLabel, wrap.firstChild);
           if (codeBlock) codeBlock.style.borderRadius = '0 0 4px 4px';
         }
@@ -874,51 +1035,51 @@
         configDefaultSystemPrompt = c.defaultSystemPrompt || '';
         configCodingSystemPrompt = c.codingSystemPrompt || '';
         configCodingSystemPromptSimple = c.codingSystemPromptSimple || '';
+        configDefaultModel = c.defaultModel || '';
+        configMaxMessagesInContext = typeof c.maxMessagesInContext === 'number' && c.maxMessagesInContext > 0 ? c.maxMessagesInContext : 0;
 
-        // Init preset selector
-        const promptButtons = document.getElementById('systemPromptButtons');
+        promptDrafts = {};
+        window.setSystemPromptPreset = setSystemPromptPreset;
+        setSystemPromptPreset('default', true, false);
+        setPromptEditorOpen(localStorage.getItem('kurczak_promptEditorOpen') === 'true');
+
         if (promptButtons) {
-          const btns = promptButtons.querySelectorAll('.btn');
-
-          // Expose setActive for external use
-          window.setSystemPromptPreset = setActive;
-
-          function setActive(val, updateValue = true) {
-            state.systemPromptPreset = val;
-            btns.forEach(b => {
-              if (b.dataset.value === val) {
-                b.classList.add('active');
-                b.setAttribute('aria-pressed', 'true');
-                if (updateValue) {
-                  if (val === 'default') systemPrompt.value = configDefaultSystemPrompt;
-                  else if (val === 'coding-simple') systemPrompt.value = configCodingSystemPromptSimple;
-                  else if (val === 'coding-complex') systemPrompt.value = configCodingSystemPrompt;
-                  else if (val === 'none') systemPrompt.value = '';
-                }
-              } else {
-                b.classList.remove('active');
-                b.setAttribute('aria-pressed', 'false');
-              }
-            });
-            updateContextUsage();
-          }
-
-          // Set initial to default
-          setActive('default');
-
-          btns.forEach(b => {
-            b.addEventListener('click', () => {
-              setActive(b.dataset.value);
+          const options = Array.from(promptButtons.querySelectorAll('.behavior-option'));
+          options.forEach((button) => {
+            button.addEventListener('click', () => setSystemPromptPreset(button.dataset.value));
+            button.addEventListener('keydown', (event) => {
+              if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+              event.preventDefault();
+              const currentIndex = options.indexOf(button);
+              let nextIndex = currentIndex;
+              if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + options.length) % options.length;
+              if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % options.length;
+              if (event.key === 'Home') nextIndex = 0;
+              if (event.key === 'End') nextIndex = options.length - 1;
+              const nextButton = options[nextIndex];
+              setSystemPromptPreset(nextButton.dataset.value);
+              nextButton.focus();
             });
           });
         }
 
         systemPrompt.addEventListener('input', () => {
+          promptDrafts[state.systemPromptPreset] = systemPrompt.value;
+          updatePromptCustomizationState();
           updateContextUsage();
         });
-
-        configDefaultModel = c.defaultModel || '';
-        configMaxMessagesInContext = typeof c.maxMessagesInContext === 'number' && c.maxMessagesInContext > 0 ? c.maxMessagesInContext : 0;
+        if (customPromptToggle) {
+          customPromptToggle.addEventListener('change', () => setPromptEditorOpen(customPromptToggle.checked, customPromptToggle.checked));
+        }
+        if (btnResetPrompt) {
+          btnResetPrompt.addEventListener('click', () => {
+            delete promptDrafts[state.systemPromptPreset];
+            systemPrompt.value = getPresetPrompt(state.systemPromptPreset);
+            updatePromptCustomizationState();
+            updateContextUsage();
+            showToast('Prompt reset to the mode default');
+          });
+        }
       });
   }
 
@@ -1076,6 +1237,7 @@
   function resetExplorer() {
     generatedFiles.clear();
     directoryTree = [];
+    updateGeneratedFileCount();
     if (fileExplorer) fileExplorer.classList.add('hidden');
     if (explorerResizer) explorerResizer.classList.add('hidden');
     if (btnToggleExplorer) btnToggleExplorer.classList.add('hidden');
@@ -1090,33 +1252,24 @@
         state.currentId = data.id;
         const historyItem = historyItems.find((item) => item.id === data.id);
         loadedHistoryTitle = data.title || (historyItem && historyItem.title) || '';
+        let conversationPreset = data.systemPromptPreset;
+        promptDrafts = {};
         if (state.activeStream && state.activeStream.chatId === data.id) {
           state.model = state.activeStream.model || data.model || '';
           state.messages = state.activeStream.messagesRef;
           systemPrompt.value = state.activeStream.systemPrompt != null ? state.activeStream.systemPrompt : (data.systemPrompt || '');
+          conversationPreset = state.activeStream.systemPromptPreset || conversationPreset;
         } else {
           state.model = data.model || '';
           state.messages = data.messages || [];
           systemPrompt.value = data.systemPrompt != null ? data.systemPrompt : configDefaultSystemPrompt;
         }
+        conversationPreset = BEHAVIOR_MODES[conversationPreset]
+          ? conversationPreset
+          : inferPresetFromPrompt(systemPrompt.value);
+        setSystemPromptPreset(conversationPreset, false, false);
         modelSelect.value = state.model;
         renderMessages();
-        if (data.systemPromptPreset && window.setSystemPromptPreset) {
-          // Don't overwrite the value if we have a custom one in history that matches the preset, 
-          // OR if we just want to set the button state.
-          // Actually, the simple logic is: set the button state, but maybe don't force-overwrite the text if it was modified?
-          // But `setActive` logic above overwrites text.
-          // Let's pass `false` to `updateValue` if we are loading a specific system prompt text from history that might differ slightly,
-          // OR just rely on the user's saved prompt text.
-
-          // If we restore the preset, we probably want to sync the button. 
-          // The systemPrompt.value is already set from data.systemPrompt above.
-          window.setSystemPromptPreset(data.systemPromptPreset, false);
-        } else {
-          // If no preset saved, maybe try to guess or just default?
-          // For now, if no preset is in data, we might leave it as is or default to coding.
-          // Let's leave it as is (which is 'coding' from init, or whatever)
-        }
 
         loadHistory();
       })
@@ -1128,7 +1281,8 @@
     state.currentId = null;
     state.messages = [];
     loadedHistoryTitle = '';
-    if (window.setSystemPromptPreset) window.setSystemPromptPreset('default');
+    promptDrafts = {};
+    if (window.setSystemPromptPreset) window.setSystemPromptPreset('default', true, false);
     renderMessages();
     loadHistory();
     closeSidebar();
@@ -1158,11 +1312,12 @@
       .catch(() => loadHistory());
   }
 
-  function saveConversationWithId(id, model, sysPrompt, messages) {
+  function saveConversationWithId(id, model, sysPrompt, systemPromptPreset, messages) {
     const payload = {
       id,
       model,
       systemPrompt: sysPrompt,
+      systemPromptPreset,
       messages,
     };
     const url = id ? `/api/history/${id}` : '/api/history';
@@ -1190,7 +1345,7 @@
     }
     // Close system prompt modal when sending
     if (systemPromptRow && !systemPromptRow.classList.contains('hidden')) {
-      systemPromptRow.classList.add('hidden');
+      setBehaviorPanelOpen(false);
     }
     state.model = model;
     const sys = systemPrompt.value.trim();
@@ -1203,6 +1358,7 @@
 
     const messagesRef = state.messages;
     const sysRef = sys;
+    const presetRef = state.systemPromptPreset;
     let recent = state.messages;
     if (configMaxMessagesInContext > 0) {
       recent = state.messages.slice(-configMaxMessagesInContext);
@@ -1247,6 +1403,7 @@
       assistantMsgId: assistantDraft.id,
       model,
       systemPrompt: sysRef,
+      systemPromptPreset: presetRef,
     };
 
     function getStreamDiv() {
@@ -1266,7 +1423,7 @@
       saveTimer = setTimeout(() => {
         saveTimer = null;
         if (chatIdForStream) {
-          saveConversationWithId(chatIdForStream, model, sysRef, messagesRef).then(() => loadHistory()).catch(() => loadHistory());
+          saveConversationWithId(chatIdForStream, model, sysRef, presetRef, messagesRef).then(() => loadHistory()).catch(() => loadHistory());
         }
       }, 900);
     }
@@ -1317,7 +1474,7 @@
       }
 
       if (chatIdForStream) {
-        saveConversationWithId(chatIdForStream, model, sysRef, messagesRef).then(() => loadHistory()).catch(() => loadHistory());
+        saveConversationWithId(chatIdForStream, model, sysRef, presetRef, messagesRef).then(() => loadHistory()).catch(() => loadHistory());
       }
     }
 
@@ -1392,7 +1549,7 @@
                       if (existingMeta) existingMeta.textContent = [formatMessageDate(new Date().toISOString()), model].filter(Boolean).join(' · ');
                       updateStreamingMessage(streamDiv, errMsg);
                       if (chatIdForStream) {
-                        saveConversationWithId(chatIdForStream, model, sysRef, messagesRef).then(() => loadHistory()).catch(() => loadHistory());
+                        saveConversationWithId(chatIdForStream, model, sysRef, presetRef, messagesRef).then(() => loadHistory()).catch(() => loadHistory());
                       }
                       return;
                     }
@@ -1417,7 +1574,7 @@
                   if (d) updateStreamingMessage(d, assistantMsg.content);
                 }
                 if (chatIdForStream) {
-                  saveConversationWithId(chatIdForStream, model, sysRef, messagesRef).then(() => loadHistory()).catch(() => loadHistory());
+                  saveConversationWithId(chatIdForStream, model, sysRef, presetRef, messagesRef).then(() => loadHistory()).catch(() => loadHistory());
                 }
                 return;
               }
@@ -1447,7 +1604,7 @@
                     if (existingMeta) existingMeta.textContent = [formatMessageDate(new Date().toISOString()), model].filter(Boolean).join(' · ');
                     updateStreamingMessage(streamDiv, errMsg);
                     if (chatIdForStream) {
-                      saveConversationWithId(chatIdForStream, model, sysRef, messagesRef).then(() => loadHistory()).catch(() => loadHistory());
+                      saveConversationWithId(chatIdForStream, model, sysRef, presetRef, messagesRef).then(() => loadHistory()).catch(() => loadHistory());
                     }
                     return;
                   }
@@ -1489,7 +1646,7 @@
         });
     }
     if (!state.currentId) {
-      saveConversationWithId(null, model, sysRef, messagesRef)
+      saveConversationWithId(null, model, sysRef, presetRef, messagesRef)
         .then((newId) => {
           chatIdForStream = newId;
           if (!state.currentId && state.messages === messagesRef) state.currentId = newId;
@@ -1518,10 +1675,9 @@
   });
   btnSystemPrompt.addEventListener('click', () => {
     const willOpen = systemPromptRow.classList.contains('hidden');
-    systemPromptRow.classList.toggle('hidden', !willOpen);
-    btnSystemPrompt.setAttribute('aria-expanded', String(willOpen));
-    if (willOpen) window.setTimeout(() => systemPrompt.focus(), 0);
+    setBehaviorPanelOpen(willOpen);
   });
+  if (btnCloseSystemPrompt) btnCloseSystemPrompt.addEventListener('click', () => setBehaviorPanelOpen(false, true));
   modelSelect.addEventListener('change', () => {
     const newModel = modelSelect.value;
     // Clear all context cache when model changes to force fresh check
@@ -1585,9 +1741,7 @@
 
     if (event.key === 'Escape') {
       if (!systemPromptRow.classList.contains('hidden')) {
-        systemPromptRow.classList.add('hidden');
-        btnSystemPrompt.setAttribute('aria-expanded', 'false');
-        btnSystemPrompt.focus();
+        setBehaviorPanelOpen(false, true);
       } else {
         closeSidebar();
       }
@@ -1611,18 +1765,11 @@
   if (btnToggleExplorer) btnToggleExplorer.addEventListener('click', toggleExplorer);
 
   // File Explorer functionality
-  const btnClearExplorer = document.getElementById('btnClearExplorer');
   const sidebarResizer = document.getElementById('sidebarResizer');
   const sidebarEl = document.querySelector('.sidebar');
 
   let generatedFiles = new Map(); // path -> content
   let directoryTree = null;
-
-  function clearExplorer() {
-    generatedFiles.clear();
-    directoryTree = null;
-    fileTree.innerHTML = '<div class="empty-state">No files generated yet</div>';
-  }
 
   function getFileIcon(filename) {
     const ext = filename.split('.').pop().toLowerCase();
@@ -1660,52 +1807,18 @@
     const tree = {};
     if (files.size === 0) return tree;
 
-    // Detect common prefix
-    let commonPrefix = null;
-    let paths = Array.from(files.keys());
-
-    // Simple common prefix detection
-    if (paths.length > 0) {
-      const parts0 = paths[0].split('/');
-      if (parts0.length > 1) {
-        const root = parts0[0] + '/';
-        let allMatch = true;
-        for (const p of paths) {
-          if (!p.startsWith(root)) {
-            allMatch = false;
-            break;
-          }
-        }
-        if (allMatch) commonPrefix = root;
-      }
-    }
-
-    const wrap = !commonPrefix;
-
     files.forEach((content, path) => {
-      // If we are wrapping, prepend 'Project/'
-      // If we found a commonPrefix, we keep it as is (it will be the top folder)
-      const fullPath = wrap ? 'Project/' + path : path;
-      const parts = fullPath.split('/').filter(p => p);
+      const parts = path.split('/').filter(Boolean);
 
       let current = tree;
 
       parts.forEach((part, index) => {
         if (index === parts.length - 1) {
-          // It's a file (leaf)
-          // Use 'path' (original) or 'fullPath'? 
-          // usage of .path in renderFileTree is mainly for openFileModal(path, content)
-          // If we click the file in the wrapped tree, we want to open the file.
-          // generatedFiles uses original map keys.
-          // So we should probably store the ORIGINAL path in the leaf node, 
-          // loop logic uses fullPath for structure.
-          current[part] = { type: 'file', content, path: path };
+          current[part] = { type: 'file', content, path };
         } else {
-          // It's a directory
           if (!current[part]) {
             current[part] = { type: 'folder', children: {} };
           } else if (current[part].type === 'file') {
-            // Conflict: file became folder? handle gracefully
             current[part] = { type: 'folder', children: {} };
           }
           current = current[part].children;
@@ -1729,32 +1842,43 @@
       const li = document.createElement('li');
 
       if (node.type === 'folder') {
-        const folderDiv = document.createElement('div');
+        const folderDiv = document.createElement('button');
+        folderDiv.type = 'button';
         folderDiv.className = 'folder-item';
-        folderDiv.innerHTML = `
-          <span class="toggle-icon">▼</span>
-          <span class="folder-icon">📁</span>
-          <span>${name}</span>
-        `;
+        folderDiv.setAttribute('aria-expanded', 'true');
+        const toggleIcon = document.createElement('span');
+        toggleIcon.className = 'toggle-icon';
+        toggleIcon.textContent = '▼';
+        const folderIcon = document.createElement('span');
+        folderIcon.className = 'folder-icon';
+        folderIcon.textContent = '📁';
+        const folderName = document.createElement('span');
+        folderName.textContent = name;
+        folderDiv.append(toggleIcon, folderIcon, folderName);
 
         const contentDiv = document.createElement('div');
         contentDiv.className = 'folder-content';
         renderFileTree(node.children, contentDiv, level + 1);
 
         folderDiv.addEventListener('click', () => {
-          folderDiv.classList.toggle('collapsed');
-          contentDiv.classList.toggle('collapsed');
+          const collapsed = folderDiv.classList.toggle('collapsed');
+          contentDiv.classList.toggle('collapsed', collapsed);
+          folderDiv.setAttribute('aria-expanded', String(!collapsed));
         });
 
         li.appendChild(folderDiv);
         li.appendChild(contentDiv);
       } else {
-        const fileDiv = document.createElement('div');
+        const fileDiv = document.createElement('button');
+        fileDiv.type = 'button';
         fileDiv.className = 'file-item';
-        fileDiv.innerHTML = `
-          <span class="file-icon">${getFileIcon(name)}</span>
-          <span>${name}</span>
-        `;
+        fileDiv.title = node.path;
+        const fileIcon = document.createElement('span');
+        fileIcon.className = 'file-icon';
+        fileIcon.textContent = getFileIcon(name);
+        const fileName = document.createElement('span');
+        fileName.textContent = name;
+        fileDiv.append(fileIcon, fileName);
 
         fileDiv.addEventListener('click', () => {
           // Remove active class from all files
@@ -1777,54 +1901,28 @@
   }
 
   function openFileModal(filePath, content) {
+    const previouslyFocused = document.activeElement;
     const modal = document.createElement('div');
-    modal.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.8);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-    `;
+    modal.className = 'file-modal';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'fileModalTitle');
 
     const modalContent = document.createElement('div');
-    modalContent.style.cssText = `
-      background: var(--bg-panel);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      width: 90%;
-      height: 80%;
-      max-width: 1200px;
-      display: flex;
-      flex-direction: column;
-    `;
+    modalContent.className = 'file-modal-dialog';
 
     const header = document.createElement('div');
-    header.style.cssText = `
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 16px;
-      border-bottom: 1px solid var(--border);
-      gap: 16px;
-    `;
+    header.className = 'file-modal-header';
 
-    // Title
     const title = document.createElement('h3');
-    title.style.cssText = 'margin: 0; color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
+    title.id = 'fileModalTitle';
     title.textContent = filePath;
 
-    // Actions
     const actions = document.createElement('div');
-    actions.style.display = 'flex';
-    actions.style.gap = '8px';
-    actions.style.alignItems = 'center';
+    actions.className = 'file-modal-actions';
 
     const btnCopy = document.createElement('button');
+    btnCopy.type = 'button';
     btnCopy.className = 'btn btn-ghost btn-sm';
     btnCopy.textContent = 'Copy';
     btnCopy.onclick = () => {
@@ -1842,6 +1940,7 @@
     };
 
     const btnDownload = document.createElement('button');
+    btnDownload.type = 'button';
     btnDownload.className = 'btn btn-ghost btn-sm';
     btnDownload.textContent = 'Download';
     btnDownload.onclick = () => {
@@ -1857,9 +1956,23 @@
     };
 
     const btnClose = document.createElement('button');
-    btnClose.style.cssText = 'background: none; border: none; color: var(--text); font-size: 20px; cursor: pointer; padding: 0 8px;';
-    btnClose.textContent = '✕';
-    btnClose.onclick = () => document.body.removeChild(modal);
+    btnClose.type = 'button';
+    btnClose.className = 'btn btn-icon';
+    btnClose.textContent = '×';
+    btnClose.title = 'Close preview';
+    btnClose.setAttribute('aria-label', 'Close file preview');
+
+    function closeModal() {
+      document.removeEventListener('keydown', onModalKeydown);
+      modal.remove();
+      if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus();
+    }
+
+    function onModalKeydown(event) {
+      if (event.key === 'Escape') closeModal();
+    }
+
+    btnClose.addEventListener('click', closeModal);
 
     actions.appendChild(btnCopy);
     actions.appendChild(btnDownload);
@@ -1869,18 +1982,7 @@
     header.appendChild(actions);
 
     const contentArea = document.createElement('pre');
-    contentArea.style.cssText = `
-      flex: 1;
-      padding: 16px;
-      overflow: auto;
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--font);
-      font-size: 13px;
-      line-height: 1.4;
-      margin: 0;
-      white-space: pre-wrap;
-    `;
+    contentArea.className = 'file-modal-content';
     const code = document.createElement('code');
     code.textContent = content;
 
@@ -1896,9 +1998,11 @@
 
     document.body.appendChild(modal);
 
-    modal.onclick = (e) => {
-      if (e.target === modal) document.body.removeChild(modal);
-    };
+    modal.addEventListener('click', (event) => {
+      if (event.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', onModalKeydown);
+    btnClose.focus();
 
     try {
       hljs.highlightElement(code);
@@ -1916,43 +2020,16 @@
     // Create a new JSZip instance
     const zip = new JSZip();
 
-    // Add files to the zip
-    let commonPrefix = null;
-    let fileCount = 0;
-
-    // First pass: detecting common prefix
-    for (const [path] of generatedFiles) {
-      fileCount++;
-      const parts = path.split('/');
-      if (parts.length > 1) {
-        const root = parts[0] + '/';
-        if (commonPrefix === null) commonPrefix = root;
-        else if (commonPrefix !== root) {
-          commonPrefix = ''; // Mixed roots
-          break;
-        }
-      } else {
-        commonPrefix = ''; // Root file found
-        break;
-      }
-    }
-
-    // Define wrap folder if no common root
-    const wrapFolder = commonPrefix ? '' : 'project/';
-
     for (const [path, content] of generatedFiles) {
-      zip.file(wrapFolder + path, content);
+      zip.file(path, content);
     }
 
-
-    // Filename: CommonPrefix (minus slash) or "Project"
-    let zipFilename = 'project-files.zip';
-    if (commonPrefix) {
-      // e.g. "MyProject/" -> "MyProject.zip"
-      zipFilename = commonPrefix.slice(0, -1) + '.zip';
-    } else {
-      zipFilename = 'Project.zip';
-    }
+    const projectSlug = getConversationTitle()
+      .toLocaleLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 48) || 'kurczak-project';
+    const zipFilename = `${projectSlug}.zip`;
 
     // Generate the zip file
     zip.generateAsync({ type: 'blob' })
@@ -1973,82 +2050,6 @@
         console.error('Error creating ZIP:', error);
         showToast('Error creating ZIP file');
       });
-  }
-
-  // Parse code blocks from messages and extract file paths
-  function parseCodeBlocks() {
-    const messages = document.querySelectorAll('.message.assistant');
-
-    messages.forEach(message => {
-      const codeBlocks = message.querySelectorAll('pre code');
-      codeBlocks.forEach(block => {
-        const text = block.textContent;
-
-        // Try different comment styles for file path detection
-        const patterns = [
-          /^\/\/ File:\s*(.+)$/m,           // JavaScript/TypeScript/C++
-          /^# File:\s*(.+)$/m,              // Python/Shell/YAML
-          /^<!-- File:\s*(.+?) -->$/m,      // HTML
-          /^\/\* File:\s*(.+?) \*\/$/m,     // CSS/JS (multi-line)
-          /^-- File:\s*(.+)$/m,             // SQL
-          /^' File:\s*(.+)$/m,              // Visual Basic
-          /^\*\* File:\s*(.+)$/m,           // Markdown
-        ];
-
-        let filePath = null;
-        for (const pattern of patterns) {
-          const match = text.match(pattern);
-          if (match) {
-            filePath = match[1];
-            break;
-          }
-        }
-
-        if (filePath) {
-          // Remove the file path comment from content
-          let content = text;
-          patterns.forEach(pattern => {
-            content = content.replace(pattern, '');
-          });
-          content = content.trim();
-
-          generatedFiles.set(filePath, content);
-
-          // Update the code block to show the file path
-          const fileLabel = document.createElement('div');
-          fileLabel.className = 'file-path-label';
-          fileLabel.style.cssText = `
-            background: var(--accent);
-            color: white;
-            padding: 4px 8px;
-            font-size: 12px;
-            border-radius: 4px 4px 0 0;
-            margin-bottom: -1px;
-            font-family: var(--font);
-            cursor: pointer;
-          `;
-          fileLabel.textContent = `📁 ${filePath}`;
-          fileLabel.title = `Click to open ${filePath}`;
-
-          // Add click handler to open file
-          fileLabel.addEventListener('click', () => {
-            openFileModal(filePath, content);
-          });
-
-          block.parentNode.insertBefore(fileLabel, block);
-
-          // Add some styling to the code block
-          block.style.borderRadius = '0 0 4px 4px';
-        }
-      });
-    });
-
-    // Update file explorer
-    if (generatedFiles.size > 0) {
-      directoryTree = buildTreeFromFiles(generatedFiles);
-      fileTree.innerHTML = '';
-      renderFileTree(directoryTree, fileTree);
-    }
   }
 
   // Event listeners for file explorer

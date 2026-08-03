@@ -9,6 +9,10 @@ All notable changes to this project will be documented in this file.
 - replace the mobile stacked layout with responsive off-canvas navigation
 - improve theme handling, focus states, status feedback, and accessible control labels
 - refresh the model selector, generated file explorer, message actions, and empty states
+- replace coding presets with an accessible sliding behavior selector for General, Simple coder, and Project builder modes
+- separate optional prompt editing from behavior selection and persist the selected mode with conversation history
+- simplify small-model instructions and harden Project builder's complete-file output contract
+- validate generated paths, remove artificial project wrappers, and improve file previews and ZIP exports
 
 ## 4.0.1 - 2026-05-30
 

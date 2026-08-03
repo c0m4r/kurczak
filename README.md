@@ -8,6 +8,8 @@ Minimal Ollama chat UI — no login, no heavy features. Pick a model and chat. B
 
 - **File Explorer** — Full project generation system with real-time tracking and tree view (requires capable models)
 - **Project Export** — Download complete generated projects as ZIP archives
+- **Model behavior modes** — General, small-model-friendly coding, and structured Project builder prompts
+- **Optional prompt editor** — Customize any behavior mode per conversation without losing the built-in default
 - **Model switcher** — Lists models from your Ollama instance
 - **Streaming** — Responses appear token-by-token
 - **Streaming continuity** — Switch threads mid-generation without losing progress
@@ -98,21 +100,27 @@ kurczak/
 
 History is saved automatically. No DB or login required.
 
-## 📁 File Explorer System
+## 📁 Model behavior and File Explorer
 
-Kurczak 3.0.0 introduces a powerful File Explorer for structured code generation.
+Kurczak provides three behavior modes:
+
+- **General** for questions, writing, and everyday assistance.
+- **Simple coder** for smaller or faster models. Its short prompt produces normal code snippets and does not ask the model to manage project files.
+- **Project builder** for capable coding models. It asks for complete files using Kurczak's structured file protocol and enables the File Explorer workflow.
+
+The prompt editor is optional and separate from the mode selector. Edits apply to the current conversation, and the selected mode can always be restored to its default prompt.
 
 <img width="1021" height="609" alt="image" src="https://github.com/user-attachments/assets/3b8c158c-22f1-45fa-8415-19ac9da2a1f6" />
 
 > [!IMPORTANT]
-> This feature relies heavily on system prompts. Smaller models might struggle to follow guidelines correctly, so your mileage may vary. For best results, use larger or specialized coding models.
+> Project builder requires a model that can reliably follow multi-file formatting instructions. Use Simple coder with smaller models to avoid malformed paths and incomplete projects.
 
 ### How it works
-1. **System Prompt**: Use the provided coding prompts in the `prompts/` directory to guide the AI.
-2. **Detection**: The system automatically parses file paths from code blocks (e.g., `// File: src/App.js`).
-3. **Visualization**: A real-time tree view appears in the sidebar, organizing files into folders.
-4. **Preview**: Click any file in the explorer to view its content in a modal.
-5. **Export**: Use the "📦 Download" button to save the entire project as a ZIP archive.
+1. Select **Project builder** from Model behavior.
+2. The model emits complete files with safe paths relative to the project root.
+3. Kurczak captures valid file blocks and builds the tree while the response streams.
+4. Select a file to preview, copy, or download it.
+5. Download the complete root-relative project as a ZIP archive.
 
 ## 🔒 Security & Intended Usage
 
