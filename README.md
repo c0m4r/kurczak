@@ -120,7 +120,7 @@ The prompt editor is optional and separate from the mode selector. Edits apply t
 2. The model emits complete files with safe paths relative to the project root.
 3. Kurczak captures valid file blocks and builds the tree while the response streams.
 4. Select a file to preview, copy, or download it.
-5. Download the complete root-relative project as a ZIP archive.
+5. Download the complete project as a ZIP archive containing a single project directory.
 
 ## 🔒 Security & Intended Usage
 

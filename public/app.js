@@ -2017,19 +2017,20 @@
 
     showToast('Creating ZIP file...');
 
-    // Create a new JSZip instance
-    const zip = new JSZip();
-
-    for (const [path, content] of generatedFiles) {
-      zip.file(path, content);
-    }
-
     const projectSlug = getConversationTitle()
       .toLocaleLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '')
       .slice(0, 48) || 'kurczak-project';
     const zipFilename = `${projectSlug}.zip`;
+
+    // Keep the project together when the archive is extracted.
+    const zip = new JSZip();
+    const projectFolder = zip.folder(projectSlug);
+
+    for (const [path, content] of generatedFiles) {
+      projectFolder.file(path, content);
+    }
 
     // Generate the zip file
     zip.generateAsync({ type: 'blob' })
