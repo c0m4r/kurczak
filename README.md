@@ -2,7 +2,7 @@
 
 Minimal Ollama chat UI — no login, no heavy features. Pick a model and chat. Built for coding with markdown and syntax highlighting.
 
-<img width="869" height="532" alt="image" src="https://github.com/user-attachments/assets/41cb29c3-cc85-4f66-a299-bc29a3a857e2" />
+<img width="1128" height="870" alt="image" src="https://github.com/user-attachments/assets/e048c02d-1cbe-47ad-8566-3d793f30a9cd" />
 
 ## 🎁 Features
 
@@ -110,7 +110,7 @@ Kurczak provides three behavior modes:
 
 The prompt editor is optional and separate from the mode selector. Edits apply to the current conversation, and the selected mode can always be restored to its default prompt.
 
-<img width="1021" height="609" alt="image" src="https://github.com/user-attachments/assets/3b8c158c-22f1-45fa-8415-19ac9da2a1f6" />
+<img width="1216" height="691" alt="image" src="https://github.com/user-attachments/assets/00f41469-50b2-48d6-9fc0-3d72812415e3" />
 
 > [!IMPORTANT]
 > Project builder requires a model that can reliably follow multi-file formatting instructions. Use Simple coder with smaller models to avoid malformed paths and incomplete projects.
