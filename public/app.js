@@ -133,6 +133,20 @@
       explorerEnabled: true,
     },
   };
+  const BEHAVIOR_PRESET_STORAGE_KEY = 'kurczak_behaviorPreset';
+
+  function isBehaviorPreset(value) {
+    return Object.prototype.hasOwnProperty.call(BEHAVIOR_MODES, value);
+  }
+
+  function getRememberedBehaviorPreset() {
+    const preset = localStorage.getItem(BEHAVIOR_PRESET_STORAGE_KEY);
+    return isBehaviorPreset(preset) ? preset : 'default';
+  }
+
+  function rememberBehaviorPreset(preset) {
+    if (isBehaviorPreset(preset)) localStorage.setItem(BEHAVIOR_PRESET_STORAGE_KEY, preset);
+  }
 
   function closeSidebar() {
     document.body.classList.remove('sidebar-visible');
@@ -228,8 +242,8 @@
   }
 
   function setSystemPromptPreset(value, updateValue = true, rememberCurrent = true) {
-    const nextPreset = BEHAVIOR_MODES[value] ? value : 'default';
-    const previousPreset = BEHAVIOR_MODES[state.systemPromptPreset] ? state.systemPromptPreset : 'default';
+    const nextPreset = isBehaviorPreset(value) ? value : 'default';
+    const previousPreset = isBehaviorPreset(state.systemPromptPreset) ? state.systemPromptPreset : 'default';
 
     if (updateValue && rememberCurrent) {
       promptDrafts[previousPreset] = systemPrompt.value;
@@ -246,6 +260,11 @@
 
     updateBehaviorUI();
     updateContextUsage();
+  }
+
+  function selectSystemPromptPreset(value) {
+    setSystemPromptPreset(value);
+    rememberBehaviorPreset(state.systemPromptPreset);
   }
 
   function setPromptEditorOpen(open, focusEditor = false) {
@@ -1041,13 +1060,13 @@
 
         promptDrafts = {};
         window.setSystemPromptPreset = setSystemPromptPreset;
-        setSystemPromptPreset('default', true, false);
+        setSystemPromptPreset(getRememberedBehaviorPreset(), true, false);
         setPromptEditorOpen(localStorage.getItem('kurczak_promptEditorOpen') === 'true');
 
         if (promptButtons) {
           const options = Array.from(promptButtons.querySelectorAll('.behavior-option'));
           options.forEach((button) => {
-            button.addEventListener('click', () => setSystemPromptPreset(button.dataset.value));
+            button.addEventListener('click', () => selectSystemPromptPreset(button.dataset.value));
             button.addEventListener('keydown', (event) => {
               if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
               event.preventDefault();
@@ -1058,7 +1077,7 @@
               if (event.key === 'Home') nextIndex = 0;
               if (event.key === 'End') nextIndex = options.length - 1;
               const nextButton = options[nextIndex];
-              setSystemPromptPreset(nextButton.dataset.value);
+              selectSystemPromptPreset(nextButton.dataset.value);
               nextButton.focus();
             });
           });
@@ -1279,11 +1298,15 @@
 
   function newChat() {
     resetExplorer();
+    const behaviorPreset = isBehaviorPreset(state.systemPromptPreset)
+      ? state.systemPromptPreset
+      : getRememberedBehaviorPreset();
     state.currentId = null;
     state.messages = [];
     loadedHistoryTitle = '';
     promptDrafts = {};
-    if (window.setSystemPromptPreset) window.setSystemPromptPreset('default', true, false);
+    rememberBehaviorPreset(behaviorPreset);
+    if (window.setSystemPromptPreset) window.setSystemPromptPreset(behaviorPreset, true, false);
     renderMessages();
     loadHistory();
     closeSidebar();

@@ -108,7 +108,7 @@ Kurczak provides three behavior modes:
 - **Simple coder** for smaller or faster models. Its short prompt produces normal code snippets and does not ask the model to manage project files.
 - **Project builder** for capable coding models. It asks for complete files using Kurczak's structured file protocol and enables the File Explorer workflow.
 
-The prompt editor is optional and separate from the mode selector. Edits apply to the current conversation, and the selected mode can always be restored to its default prompt.
+The prompt editor is optional and separate from the mode selector. Kurczak remembers the selected behavior for new conversations and across browser reloads. Prompt edits apply only to the current conversation, and the selected mode can always be restored to its default prompt.
 
 <img width="1216" height="691" alt="image" src="https://github.com/user-attachments/assets/00f41469-50b2-48d6-9fc0-3d72812415e3" />
 
