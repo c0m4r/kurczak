@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## 5.0.1 - 2026-08-04
+
+- rmember model behavior in new chats
+- add context usage tooltip regarding system prompt tokens being included in token counter
+
 ## 5.0.0 - 2026-08-03
 
 - redesign the chat as a focused local AI workspace with a clearer reading hierarchy and composer

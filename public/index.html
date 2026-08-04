@@ -102,7 +102,12 @@
           </div>
         </div>
         <div class="header-actions">
-          <span class="context-usage-header" id="contextUsage" title="Estimated context window usage"></span>
+          <span class="context-usage-wrap">
+            <span class="context-usage-header" id="contextUsage" tabindex="0"
+              aria-describedby="contextUsageTooltip"></span>
+            <span class="context-usage-tooltip" id="contextUsageTooltip" role="tooltip">Includes the active system
+              prompt, so a new conversation may start above zero.</span>
+          </span>
           <button type="button" class="btn btn-ghost btn-sm hidden" id="btnToggleExplorer"
             title="Toggle file explorer" aria-label="Toggle file explorer">
             <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 6h7l2 2h9v11H3V6Z" /></svg>
@@ -289,7 +294,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
     integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"
     crossorigin="anonymous"></script>
-  <script src="/app.js" integrity="sha384-b6Ib8C60a0V5IKm83lUsmdxPEZK5KHrooXrz67T7G8Oc9cIP8nxJOF3WS4DhmSy9"
+  <script src="/app.js" integrity="sha384-G+Bul61DmWSUtqDSIuTCWvbhYgjaRXUjknTfdq9HO5fzgbUfuGlklVVu2KYXFaD5"
     crossorigin="anonymous"></script>
 </body>
 

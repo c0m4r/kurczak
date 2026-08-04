@@ -2175,6 +2175,11 @@ kbd {
   white-space: nowrap;
 }
 
+.context-usage-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
 .context-usage-header {
   min-height: 27px;
   padding: 5px 9px;
@@ -2188,6 +2193,7 @@ kbd {
   font-weight: 560;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  cursor: help;
 }
 
 .context-usage-header.visible {
@@ -2204,6 +2210,46 @@ kbd {
   border-color: color-mix(in srgb, var(--danger) 36%, var(--border));
   color: var(--danger);
   background: var(--danger-soft);
+}
+
+.context-usage-tooltip {
+  position: absolute;
+  top: calc(100% + 9px);
+  right: 0;
+  z-index: 30;
+  width: max-content;
+  max-width: min(280px, 80vw);
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-lg);
+  font-size: 11px;
+  font-weight: 450;
+  line-height: 1.45;
+  white-space: normal;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-3px);
+  transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s;
+}
+
+.context-usage-tooltip::before {
+  content: '';
+  position: absolute;
+  right: 18px;
+  bottom: 100%;
+  border: 5px solid transparent;
+  border-bottom-color: var(--border-strong);
+}
+
+.context-usage-wrap:hover .context-usage-header.visible + .context-usage-tooltip,
+.context-usage-wrap:focus-within .context-usage-header.visible + .context-usage-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
 }
 
 .header-actions > .btn {

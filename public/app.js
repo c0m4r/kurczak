@@ -995,6 +995,7 @@
       if (contextUsage) {
         contextUsage.textContent = '';
         contextUsage.className = 'context-usage-header';
+        contextUsage.removeAttribute('aria-label');
       }
       return;
     }
@@ -1026,7 +1027,7 @@
       const usageEl = contextUsage;
       if (!usageEl) return;
       usageEl.textContent = text;
-      usageEl.title = accessibleText;
+      usageEl.setAttribute('aria-label', accessibleText + '. Includes the active system prompt, so a new conversation may start above zero.');
       usageEl.classList.add('visible');
 
       // Add warning class when exceeded
